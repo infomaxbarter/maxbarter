@@ -60,7 +60,7 @@ const UsersPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {users.map((user: any, i: number) => (
               <motion.div key={user.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Link to={`/usuarios/${user.username}`}>
+                <Link to={`/users/${user.username}`}>
                   <div className="glass-card rounded-xl p-5 hover:glow-border transition-all cursor-pointer">
                     <div className="flex items-center gap-4">
                       <div className="relative w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">

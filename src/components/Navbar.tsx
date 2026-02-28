@@ -34,10 +34,10 @@ const Navbar = () => {
 
   const navItems = [
     { path: "/home", label: t("nav.home"), icon: Home },
-    { path: "/productos", label: t("nav.products"), icon: ShoppingBag },
-    { path: "/ofertas", label: t("nav.offers"), icon: ShoppingBag },
+    { path: "/products", label: t("nav.products"), icon: ShoppingBag },
+    { path: "/offers", label: t("nav.offers"), icon: ShoppingBag },
     { path: "/exchange", label: t("nav.exchange"), icon: ArrowLeftRight },
-    { path: "/usuarios", label: t("nav.users"), icon: Users },
+    { path: "/users", label: t("nav.users"), icon: Users },
     { path: "/stats", label: t("nav.stats"), icon: BarChart3 },
     { path: "/about", label: t("nav.about"), icon: Info },
     { path: "/community", label: t("nav.community"), icon: Heart },
@@ -74,7 +74,6 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-1">
-          {/* Theme toggle */}
           <button
             onClick={toggleTheme}
             className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -83,7 +82,6 @@ const Navbar = () => {
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          {/* Language selector */}
           <div className="relative">
             <button
               onClick={() => setLangOpen(!langOpen)}
@@ -113,7 +111,7 @@ const Navbar = () => {
           {user ? (
             <>
               <Link
-                to="/perfil"
+                to="/profile"
                 className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 <User className="w-4 h-4" />

@@ -1,13 +1,28 @@
 import { motion } from "framer-motion";
 import { useI18n } from "@/contexts/I18nContext";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Github, BookOpen, HeadphonesIcon, Users, Heart,
   GitPullRequest, Bug, MessageCircle, Star, Code2, Globe
 } from "lucide-react";
 
+const GITHUB_ORG = "AliHafeez337";
+const GITHUB_REPO = "maxbarter";
+const GITHUB_URL = `https://github.com/${GITHUB_ORG}/${GITHUB_REPO}`;
+
 const CommunityPage = () => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+
+  // Fetch community pages from DB
+  const { data: communityPages = [] } = useQuery({
+    queryKey: ["community-pages"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("community_pages").select("*").eq("is_published", true).order("sort_order");
+      return data || [];
+    },
+  });
 
   const sections = [
     {
@@ -16,10 +31,10 @@ const CommunityPage = () => {
       color: "text-foreground",
       bgColor: "bg-foreground/10",
       links: [
-        { label: t("community.viewRepo"), url: "https://github.com/maxbarter", icon: Code2, external: true },
-        { label: t("community.issues"), url: "https://github.com/maxbarter/issues", icon: Bug, external: true },
-        { label: t("community.pullRequests"), url: "https://github.com/maxbarter/pulls", icon: GitPullRequest, external: true },
-        { label: t("community.starUs"), url: "https://github.com/maxbarter", icon: Star, external: true },
+        { label: t("community.viewRepo"), url: GITHUB_URL, icon: Code2, external: true },
+        { label: t("community.issues"), url: `${GITHUB_URL}/issues`, icon: Bug, external: true },
+        { label: t("community.pullRequests"), url: `${GITHUB_URL}/pulls`, icon: GitPullRequest, external: true },
+        { label: t("community.starUs"), url: GITHUB_URL, icon: Star, external: true },
       ],
     },
     {
@@ -27,11 +42,14 @@ const CommunityPage = () => {
       icon: BookOpen,
       color: "text-blue-400",
       bgColor: "bg-blue-400/10",
-      links: [
-        { label: t("community.gettingStarted"), url: "/community/getting-started", icon: BookOpen, external: false },
-        { label: t("community.apiDocs"), url: "/community/api-docs", icon: Code2, external: false },
-        { label: t("community.contributing"), url: "/community/contributing", icon: GitPullRequest, external: false },
-      ],
+      links: communityPages
+        .filter((p: any) => ["getting-started", "api-docs", "contributing"].includes(p.slug))
+        .map((p: any) => ({
+          label: p[`title_${language}`] || p.title_en,
+          url: `/community/${p.slug}`,
+          icon: BookOpen,
+          external: false,
+        })),
     },
     {
       key: "support",
@@ -39,9 +57,16 @@ const CommunityPage = () => {
       color: "text-green-400",
       bgColor: "bg-green-400/10",
       links: [
-        { label: t("community.reportBug"), url: "https://github.com/maxbarter/issues/new", icon: Bug, external: true },
-        { label: t("community.discussions"), url: "https://github.com/maxbarter/discussions", icon: MessageCircle, external: true },
-        { label: t("community.faq"), url: "/community/faq", icon: BookOpen, external: false },
+        { label: t("community.reportBug"), url: `${GITHUB_URL}/issues/new`, icon: Bug, external: true },
+        { label: t("community.discussions"), url: `${GITHUB_URL}/discussions`, icon: MessageCircle, external: true },
+        ...communityPages
+          .filter((p: any) => p.slug === "faq")
+          .map((p: any) => ({
+            label: p[`title_${language}`] || p.title_en,
+            url: `/community/${p.slug}`,
+            icon: BookOpen,
+            external: false,
+          })),
       ],
     },
     {
@@ -50,9 +75,15 @@ const CommunityPage = () => {
       color: "text-primary",
       bgColor: "bg-primary/10",
       links: [
-        { label: "Discord", url: "https://discord.gg/maxbarter", icon: MessageCircle, external: true },
-        { label: t("community.contributors"), url: "/community/contributors", icon: Heart, external: false },
-        { label: t("community.codeOfConduct"), url: "/community/code-of-conduct", icon: Globe, external: false },
+        { label: "Discord", url: `https://discord.gg/${GITHUB_REPO}`, icon: MessageCircle, external: true },
+        ...communityPages
+          .filter((p: any) => ["contributors", "code-of-conduct"].includes(p.slug))
+          .map((p: any) => ({
+            label: p[`title_${language}`] || p.title_en,
+            url: `/community/${p.slug}`,
+            icon: Heart,
+            external: false,
+          })),
       ],
     },
   ];
@@ -80,11 +111,11 @@ const CommunityPage = () => {
           </div>
           <p className="text-muted-foreground max-w-2xl mx-auto mb-6">{t("community.openSourceDesc")}</p>
           <div className="flex flex-wrap justify-center gap-3">
-            <a href="https://github.com/maxbarter" target="_blank" rel="noopener noreferrer"
+            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors">
               <Github className="w-5 h-5" /> {t("community.viewOnGithub")}
             </a>
-            <a href="https://github.com/maxbarter/fork" target="_blank" rel="noopener noreferrer"
+            <a href={`${GITHUB_URL}/fork`} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-border text-foreground font-medium hover:bg-secondary transition-colors">
               <GitPullRequest className="w-5 h-5" /> {t("community.forkProject")}
             </a>

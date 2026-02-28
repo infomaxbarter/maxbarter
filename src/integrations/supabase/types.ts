@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      community_pages: {
+        Row: {
+          color: string
+          content_en: string
+          content_es: string
+          content_tr: string
+          created_at: string
+          icon: string
+          id: string
+          is_published: boolean
+          slug: string
+          sort_order: number
+          title_en: string
+          title_es: string
+          title_tr: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          content_en?: string
+          content_es?: string
+          content_tr?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          is_published?: boolean
+          slug: string
+          sort_order?: number
+          title_en?: string
+          title_es?: string
+          title_tr?: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          content_en?: string
+          content_es?: string
+          content_tr?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          is_published?: boolean
+          slug?: string
+          sort_order?: number
+          title_en?: string
+          title_es?: string
+          title_tr?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exchange_proposals: {
         Row: {
           contact_info: string | null

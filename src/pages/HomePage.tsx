@@ -46,7 +46,6 @@ const HomePage = () => {
 
   const products = withSeedFallback(dbProducts, seedProducts as any);
 
-  // Client-side filter for seed data
   const filteredProducts = dbProducts.length > 0 ? products : products.filter((p: any) => {
     if (selectedCategory !== "all" && p.category !== selectedCategory) return false;
     if (searchTerm && !p.title.toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -69,7 +68,7 @@ const HomePage = () => {
             ))}
           </div>
           {user && (
-            <Link to="/productos/nuevo">
+            <Link to="/products/new">
               <Button size="sm" className="bg-primary text-primary-foreground gap-2">
                 <Plus className="w-4 h-4" /> {t("nav.products")}
               </Button>
@@ -87,7 +86,7 @@ const HomePage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {filteredProducts.map((product: any, i: number) => (
               <motion.div key={product.id} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03, duration: 0.4 }}>
-                <Link to={`/productos/${makeProductSlug(product.title, product.id)}`}>
+                <Link to={`/products/${makeProductSlug(product.title, product.id)}`}>
                   <div className="glass-card rounded-lg overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform">
                     <div className="relative h-48 overflow-hidden bg-muted">
                       {product.image_url ? (
@@ -138,7 +137,7 @@ const HomePage = () => {
           <div className="text-center py-20">
             <p className="text-muted-foreground text-lg">{t("home.noProducts")}</p>
             {user && (
-              <Link to="/productos/nuevo">
+              <Link to="/products/new">
                 <Button className="mt-4 bg-primary text-primary-foreground gap-2"><Plus className="w-4 h-4" /> Add Product</Button>
               </Link>
             )}

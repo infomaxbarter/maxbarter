@@ -42,15 +42,15 @@ const App = () => (
                 <Route path="/" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/home" element={<HomePage />} />
-                <Route path="/productos" element={<HomePage />} />
-                <Route path="/productos/nuevo" element={<CreateProductPage />} />
-                <Route path="/productos/:slug" element={<ProductDetailPage />} />
-                <Route path="/ofertas" element={<OffersPage />} />
+                <Route path="/products" element={<HomePage />} />
+                <Route path="/products/new" element={<CreateProductPage />} />
+                <Route path="/products/:slug" element={<ProductDetailPage />} />
+                <Route path="/offers" element={<OffersPage />} />
                 <Route path="/about" element={<AboutPage />} />
-                <Route path="/perfil" element={<ProfilePage />} />
+                <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/stats" element={<StatsPage />} />
-                <Route path="/usuarios" element={<UsersPage />} />
-                <Route path="/usuarios/:username" element={<UserDetailPage />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/users/:username" element={<UserDetailPage />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/community" element={<CommunityPage />} />
                 <Route path="/community/:slug" element={<CommunityDetailPage />} />

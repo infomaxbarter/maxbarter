@@ -8,7 +8,7 @@ import {
   Shield, Users, ShoppingBag, Handshake, AlertTriangle,
   Crown, UserCheck, User, Trash2, Eye, Search, ChevronDown,
   Plus, X, Edit2, Check, Ban, RotateCcw, ArrowLeftRight, Clock, Play, Pause,
-  MessageSquare, MapPin, Globe, Zap, XCircle, Star
+  MessageSquare, MapPin, Globe, Zap, XCircle, Star, Heart, BookOpen
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, Navigate } from "react-router-dom";
@@ -93,7 +93,7 @@ const AdminDashboard = () => {
   const { t } = useI18n();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "products" | "offers" | "requests" | "proposals">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "products" | "offers" | "requests" | "proposals" | "community">("overview");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Modal states
@@ -152,6 +152,47 @@ const AdminDashboard = () => {
     enabled: isAdmin === true,
   });
 
+  const { data: communityPages = [] } = useQuery({
+    queryKey: ["admin-community-pages"],
+    queryFn: async () => { const { data } = await (supabase as any).from("community_pages").select("*").order("sort_order"); return data || []; },
+    enabled: isAdmin === true,
+  });
+
+  const [editCommunityPage, setEditCommunityPage] = useState<any>(null);
+  const [newCommunityPage, setNewCommunityPage] = useState(false);
+  const [newCommunityData, setNewCommunityData] = useState({ slug: "", title_tr: "", title_en: "", title_es: "", content_tr: "", content_en: "", content_es: "", icon: "BookOpen", color: "text-blue-400", sort_order: 0, is_published: true });
+
+  const updateCommunityMutation = useMutation({
+    mutationFn: async (p: any) => {
+      const { error } = await (supabase as any).from("community_pages").update({
+        slug: p.slug, title_tr: p.title_tr, title_en: p.title_en, title_es: p.title_es,
+        content_tr: p.content_tr, content_en: p.content_en, content_es: p.content_es,
+        icon: p.icon, color: p.color, sort_order: p.sort_order, is_published: p.is_published,
+      }).eq("id", p.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setEditCommunityPage(null); toast({ title: "Community page updated" }); },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const createCommunityMutation = useMutation({
+    mutationFn: async (p: typeof newCommunityData) => {
+      const { error } = await (supabase as any).from("community_pages").insert(p);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateAll(); setNewCommunityPage(false);
+      setNewCommunityData({ slug: "", title_tr: "", title_en: "", title_es: "", content_tr: "", content_en: "", content_es: "", icon: "BookOpen", color: "text-blue-400", sort_order: 0, is_published: true });
+      toast({ title: "Community page created" });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteCommunityMutation = useMutation({
+    mutationFn: async (id: string) => { const { error } = await (supabase as any).from("community_pages").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast({ title: "Community page deleted" }); },
+  });
+
   // Use seed fallback
   const profiles = withSeedFallback(dbProfiles, seedProfiles as any);
   const products = withSeedFallback(dbProducts, seedProducts as any);
@@ -161,7 +202,7 @@ const AdminDashboard = () => {
 
   // ─── Mutations ─────────────────────────────
   const invalidateAll = () => {
-    ["admin-profiles", "admin-products", "admin-offers", "admin-user-roles", "admin-exchange-requests", "admin-proposals"]
+    ["admin-profiles", "admin-products", "admin-offers", "admin-user-roles", "admin-exchange-requests", "admin-proposals", "admin-community-pages"]
       .forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
   };
 
@@ -353,6 +394,7 @@ const AdminDashboard = () => {
     { key: "offers" as const, label: t("admin.offers"), icon: Handshake },
     { key: "requests" as const, label: t("admin.requests"), icon: ArrowLeftRight },
     { key: "proposals" as const, label: t("exchange.proposals"), icon: MessageSquare },
+    { key: "community" as const, label: t("nav.community"), icon: Heart },
   ];
 
   return (
@@ -503,7 +545,7 @@ const AdminDashboard = () => {
                         <td className="p-4 text-muted-foreground hidden lg:table-cell">{new Date(p.created_at).toLocaleDateString()}</td>
                         <td className="p-4 text-right space-x-1">
                           <button onClick={() => setEditProfile({ ...p })} className="p-2 hover:text-primary transition-colors inline-block"><Edit2 className="w-4 h-4" /></button>
-                          <Link to={`/usuarios/${p.username}`} className="p-2 hover:text-primary transition-colors inline-block"><Eye className="w-4 h-4" /></Link>
+                          <Link to={`/users/${p.username}`} className="p-2 hover:text-primary transition-colors inline-block"><Eye className="w-4 h-4" /></Link>
                         </td>
                       </tr>
                     );
@@ -567,7 +609,7 @@ const AdminDashboard = () => {
                       </td>
                       <td className="p-4 text-right space-x-1">
                         <button onClick={() => setEditProduct({ ...p, latitude: p.latitude || "", longitude: p.longitude || "" })} className="p-2 hover:text-primary transition-colors inline-block"><Edit2 className="w-4 h-4" /></button>
-                        <Link to={`/productos/${makeProductSlug(p.title, p.id)}`} className="p-2 hover:text-primary transition-colors inline-block"><Eye className="w-4 h-4" /></Link>
+                        <Link to={`/products/${makeProductSlug(p.title, p.id)}`} className="p-2 hover:text-primary transition-colors inline-block"><Eye className="w-4 h-4" /></Link>
                         {!p.id.startsWith("seed-") && (
                           <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteProductMutation.mutate(p.id); }}
                             className="p-2 hover:text-destructive transition-colors inline-block"><Trash2 className="w-4 h-4" /></button>
@@ -738,6 +780,55 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* ═══ COMMUNITY ═══ */}
+        {activeTab === "community" && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-muted-foreground">{communityPages.length} community pages</p>
+              <button onClick={() => setNewCommunityPage(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                <Plus className="w-4 h-4" /> Add Page
+              </button>
+            </div>
+            <div className="glass-card rounded-xl overflow-hidden overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left p-4 text-muted-foreground font-medium">Slug</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium">Title (EN)</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">Icon</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.status")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">Order</th>
+                    <th className="text-right p-4 text-muted-foreground font-medium">{t("admin.actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {communityPages.map((cp: any) => (
+                    <tr key={cp.id} className="border-b border-border/20 hover:bg-secondary/30 transition-colors">
+                      <td className="p-4 font-medium">{cp.slug}</td>
+                      <td className="p-4">{cp.title_en}</td>
+                      <td className="p-4 text-muted-foreground hidden md:table-cell">{cp.icon}</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-0.5 rounded-full text-xs border ${cp.is_published ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-muted text-muted-foreground border-border"}`}>
+                          {cp.is_published ? "Published" : "Draft"}
+                        </span>
+                      </td>
+                      <td className="p-4 text-muted-foreground hidden md:table-cell">{cp.sort_order}</td>
+                      <td className="p-4 text-right space-x-1">
+                        <button onClick={() => setEditCommunityPage({ ...cp })} className="p-2 hover:text-primary transition-colors inline-block"><Edit2 className="w-4 h-4" /></button>
+                        <Link to={`/community/${cp.slug}`} className="p-2 hover:text-primary transition-colors inline-block"><Eye className="w-4 h-4" /></Link>
+                        <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteCommunityMutation.mutate(cp.id); }}
+                          className="p-2 hover:text-destructive transition-colors inline-block"><Trash2 className="w-4 h-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {communityPages.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("admin.noData")}</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ═══ MODALS ═══ */}
@@ -891,6 +982,54 @@ const AdminDashboard = () => {
             </button>
           </div>
         )}
+      </Modal>
+
+      {/* Edit Community Page Modal */}
+      <Modal open={!!editCommunityPage} onClose={() => setEditCommunityPage(null)} title="Edit Community Page">
+        {editCommunityPage && (
+          <div className="space-y-4">
+            <InputField label="Slug" value={editCommunityPage.slug} onChange={(v: string) => setEditCommunityPage({ ...editCommunityPage, slug: v })} />
+            <InputField label="Title (TR)" value={editCommunityPage.title_tr} onChange={(v: string) => setEditCommunityPage({ ...editCommunityPage, title_tr: v })} />
+            <InputField label="Title (EN)" value={editCommunityPage.title_en} onChange={(v: string) => setEditCommunityPage({ ...editCommunityPage, title_en: v })} />
+            <InputField label="Title (ES)" value={editCommunityPage.title_es} onChange={(v: string) => setEditCommunityPage({ ...editCommunityPage, title_es: v })} />
+            <InputField label="Content (TR)" value={editCommunityPage.content_tr} onChange={(v: string) => setEditCommunityPage({ ...editCommunityPage, content_tr: v })} rows={5} />
+            <InputField label="Content (EN)" value={editCommunityPage.content_en} onChange={(v: string) => setEditCommunityPage({ ...editCommunityPage, content_en: v })} rows={5} />
+            <InputField label="Content (ES)" value={editCommunityPage.content_es} onChange={(v: string) => setEditCommunityPage({ ...editCommunityPage, content_es: v })} rows={5} />
+            <SelectField label="Icon" value={editCommunityPage.icon} onChange={(v) => setEditCommunityPage({ ...editCommunityPage, icon: v })}
+              options={["BookOpen", "Code2", "GitPullRequest", "MessageCircle", "Heart", "Globe"].map(i => ({ value: i, label: i }))} />
+            <InputField label="Color Class" value={editCommunityPage.color} onChange={(v: string) => setEditCommunityPage({ ...editCommunityPage, color: v })} />
+            <InputField label="Sort Order" type="number" value={editCommunityPage.sort_order} onChange={(v: string) => setEditCommunityPage({ ...editCommunityPage, sort_order: parseInt(v) || 0 })} />
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-muted-foreground">Published</label>
+              <button onClick={() => setEditCommunityPage({ ...editCommunityPage, is_published: !editCommunityPage.is_published })}
+                className={`w-10 h-6 rounded-full transition-colors ${editCommunityPage.is_published ? "bg-primary" : "bg-muted"}`}>
+                <div className={`w-4 h-4 rounded-full bg-primary-foreground mx-1 transition-transform ${editCommunityPage.is_published ? "translate-x-4" : ""}`} />
+              </button>
+            </div>
+            <button onClick={() => updateCommunityMutation.mutate(editCommunityPage)} disabled={updateCommunityMutation.isPending}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {t("admin.save")}
+            </button>
+          </div>
+        )}
+      </Modal>
+
+      {/* New Community Page Modal */}
+      <Modal open={newCommunityPage} onClose={() => setNewCommunityPage(false)} title="New Community Page">
+        <div className="space-y-4">
+          <InputField label="Slug" value={newCommunityData.slug} onChange={(v: string) => setNewCommunityData({ ...newCommunityData, slug: v })} placeholder="my-page" />
+          <InputField label="Title (TR)" value={newCommunityData.title_tr} onChange={(v: string) => setNewCommunityData({ ...newCommunityData, title_tr: v })} />
+          <InputField label="Title (EN)" value={newCommunityData.title_en} onChange={(v: string) => setNewCommunityData({ ...newCommunityData, title_en: v })} />
+          <InputField label="Title (ES)" value={newCommunityData.title_es} onChange={(v: string) => setNewCommunityData({ ...newCommunityData, title_es: v })} />
+          <InputField label="Content (EN)" value={newCommunityData.content_en} onChange={(v: string) => setNewCommunityData({ ...newCommunityData, content_en: v })} rows={5} />
+          <SelectField label="Icon" value={newCommunityData.icon} onChange={(v) => setNewCommunityData({ ...newCommunityData, icon: v })}
+            options={["BookOpen", "Code2", "GitPullRequest", "MessageCircle", "Heart", "Globe"].map(i => ({ value: i, label: i }))} />
+          <InputField label="Sort Order" type="number" value={newCommunityData.sort_order} onChange={(v: string) => setNewCommunityData({ ...newCommunityData, sort_order: parseInt(v) || 0 })} />
+          <button onClick={() => createCommunityMutation.mutate(newCommunityData)} disabled={!newCommunityData.slug || !newCommunityData.title_en || createCommunityMutation.isPending}
+            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+            {t("admin.create")}
+          </button>
+        </div>
       </Modal>
     </div>
   );

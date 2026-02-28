@@ -67,7 +67,7 @@ const CreateProductPage = () => {
     } else {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "✅", description: "Product created!" });
-      navigate("/home");
+      navigate("/products");
     }
   };
 
