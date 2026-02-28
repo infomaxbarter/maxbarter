@@ -8,6 +8,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import PageMetadataProvider from "./components/PageMetadataProvider";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
@@ -37,6 +38,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <PageMetadataProvider>
               <Navbar />
               <Routes>
                 <Route path="/" element={<LoginPage />} />
@@ -59,6 +61,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <Footer />
+              </PageMetadataProvider>
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>
