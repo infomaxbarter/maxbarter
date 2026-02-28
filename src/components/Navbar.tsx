@@ -4,6 +4,7 @@ import { Menu, X, Home, ShoppingBag, Users, BarChart3, User, LogOut, Info, Sun, 
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n, Language } from "@/contexts/I18nContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const langFlags: Record<Language, string> = { tr: "🇹🇷", en: "🇬🇧", es: "🇪🇸" };
 const langNames: Record<Language, string> = { tr: "Türkçe", en: "English", es: "Español" };
@@ -15,6 +16,7 @@ const Navbar = () => {
   const [langOpen, setLangOpen] = useState(false);
   const { t, language, setLanguage } = useI18n();
   const { theme, toggleTheme } = useTheme();
+  const { signOut } = useAuth();
 
   if (location.pathname === "/" || location.pathname === "/register") return null;
 
@@ -100,7 +102,7 @@ const Navbar = () => {
             {t("nav.profile")}
           </Link>
           <button
-            onClick={() => navigate("/")}
+            onClick={async () => { await signOut(); navigate("/"); }}
             className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-destructive hover:bg-secondary transition-colors"
           >
             <LogOut className="w-4 h-4" />
