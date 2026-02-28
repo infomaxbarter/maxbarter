@@ -231,6 +231,39 @@ export type Database = {
           },
         ]
       }
+      page_metadata: {
+        Row: {
+          created_at: string
+          description: string
+          icon_url: string | null
+          id: string
+          page_path: string
+          social_image_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          icon_url?: string | null
+          id?: string
+          page_path: string
+          social_image_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          icon_url?: string | null
+          id?: string
+          page_path?: string
+          social_image_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: Database["public"]["Enums"]["product_category"]

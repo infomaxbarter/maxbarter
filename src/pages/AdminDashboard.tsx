@@ -8,7 +8,7 @@ import {
   Shield, Users, ShoppingBag, Handshake, AlertTriangle,
   Crown, UserCheck, User, Trash2, Eye, Search, ChevronDown,
   Plus, X, Edit2, Check, Ban, RotateCcw, ArrowLeftRight, Clock, Play, Pause,
-  MessageSquare, MapPin, Globe, Zap, XCircle, Star, Heart, BookOpen
+  MessageSquare, MapPin, Globe, Zap, XCircle, Star, Heart, BookOpen, FileText, Image
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, Navigate } from "react-router-dom";
@@ -93,7 +93,7 @@ const AdminDashboard = () => {
   const { t } = useI18n();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "products" | "offers" | "requests" | "proposals" | "community">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "products" | "offers" | "requests" | "proposals" | "community" | "seo">("overview");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Modal states
@@ -162,6 +162,49 @@ const AdminDashboard = () => {
   const [newCommunityPage, setNewCommunityPage] = useState(false);
   const [newCommunityData, setNewCommunityData] = useState({ slug: "", title_tr: "", title_en: "", title_es: "", content_tr: "", content_en: "", content_es: "", icon: "BookOpen", color: "text-blue-400", sort_order: 0, is_published: true });
 
+  // SEO / Page Metadata
+  const { data: pageMetadata = [] } = useQuery({
+    queryKey: ["admin-page-metadata"],
+    queryFn: async () => { const { data } = await (supabase as any).from("page_metadata").select("*").order("page_path"); return data || []; },
+    enabled: isAdmin === true,
+  });
+  const [editSeo, setEditSeo] = useState<any>(null);
+  const [newSeo, setNewSeo] = useState(false);
+  const [newSeoData, setNewSeoData] = useState({ page_path: "", title: "", description: "", icon_url: "", social_image_url: "" });
+
+  const updateSeoMutation = useMutation({
+    mutationFn: async (p: any) => {
+      const { error } = await (supabase as any).from("page_metadata").update({
+        page_path: p.page_path, title: p.title, description: p.description,
+        icon_url: p.icon_url || null, social_image_url: p.social_image_url || null,
+      }).eq("id", p.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setEditSeo(null); toast({ title: "SEO metadata updated" }); },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const createSeoMutation = useMutation({
+    mutationFn: async (p: typeof newSeoData) => {
+      const { error } = await (supabase as any).from("page_metadata").insert({
+        page_path: p.page_path, title: p.title, description: p.description,
+        icon_url: p.icon_url || null, social_image_url: p.social_image_url || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateAll(); setNewSeo(false);
+      setNewSeoData({ page_path: "", title: "", description: "", icon_url: "", social_image_url: "" });
+      toast({ title: "SEO metadata created" });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteSeoMutation = useMutation({
+    mutationFn: async (id: string) => { const { error } = await (supabase as any).from("page_metadata").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast({ title: "SEO metadata deleted" }); },
+  });
+
   const updateCommunityMutation = useMutation({
     mutationFn: async (p: any) => {
       const { error } = await (supabase as any).from("community_pages").update({
@@ -202,7 +245,7 @@ const AdminDashboard = () => {
 
   // ─── Mutations ─────────────────────────────
   const invalidateAll = () => {
-    ["admin-profiles", "admin-products", "admin-offers", "admin-user-roles", "admin-exchange-requests", "admin-proposals", "admin-community-pages"]
+    ["admin-profiles", "admin-products", "admin-offers", "admin-user-roles", "admin-exchange-requests", "admin-proposals", "admin-community-pages", "admin-page-metadata"]
       .forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
   };
 
@@ -397,6 +440,7 @@ const AdminDashboard = () => {
     { key: "requests" as const, label: t("admin.requests"), icon: ArrowLeftRight },
     { key: "proposals" as const, label: t("exchange.proposals"), icon: MessageSquare },
     { key: "community" as const, label: t("nav.community"), icon: Heart },
+    { key: "seo" as const, label: "SEO", icon: FileText },
   ];
 
   return (
@@ -832,6 +876,59 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* ═══ SEO / PAGE METADATA ═══ */}
+        {activeTab === "seo" && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-muted-foreground">{pageMetadata.length} page metadata entries</p>
+              <button onClick={() => setNewSeo(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                <Plus className="w-4 h-4" /> Add Page SEO
+              </button>
+            </div>
+            <div className="glass-card rounded-xl overflow-hidden overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left p-4 text-muted-foreground font-medium">Page Path</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium">Title</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">Description</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">Icon</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden lg:table-cell">Social Image</th>
+                    <th className="text-right p-4 text-muted-foreground font-medium">{t("admin.actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageMetadata.map((pm: any) => (
+                    <tr key={pm.id} className="border-b border-border/20 hover:bg-secondary/30 transition-colors">
+                      <td className="p-4 font-medium font-mono text-xs">{pm.page_path}</td>
+                      <td className="p-4">{pm.title || "—"}</td>
+                      <td className="p-4 text-muted-foreground max-w-xs truncate hidden md:table-cell">{pm.description || "—"}</td>
+                      <td className="p-4 hidden md:table-cell">
+                        {pm.icon_url ? <img src={pm.icon_url} alt="" className="w-6 h-6 rounded" /> : "—"}
+                      </td>
+                      <td className="p-4 hidden lg:table-cell">
+                        {pm.social_image_url ? <img src={pm.social_image_url} alt="" className="w-16 h-10 rounded object-cover" /> : "—"}
+                      </td>
+                      <td className="p-4 text-right space-x-1">
+                        <button onClick={() => setEditSeo({ ...pm })} className="p-2 hover:text-primary transition-colors inline-block"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteSeoMutation.mutate(pm.id); }}
+                          className="p-2 hover:text-destructive transition-colors inline-block"><Trash2 className="w-4 h-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {pageMetadata.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("admin.noData")}</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="glass-card rounded-xl p-4">
+              <p className="text-xs text-muted-foreground">
+                <strong>Available paths:</strong> /home, /products, /offers, /about, /profile, /stats, /users, /community, /exchange, /map, /admin
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ═══ MODALS ═══ */}
@@ -1058,6 +1155,42 @@ const AdminDashboard = () => {
             options={["BookOpen", "Code2", "GitPullRequest", "MessageCircle", "Heart", "Globe"].map(i => ({ value: i, label: i }))} />
           <InputField label="Sort Order" type="number" value={newCommunityData.sort_order} onChange={(v: string) => setNewCommunityData({ ...newCommunityData, sort_order: parseInt(v) || 0 })} />
           <button onClick={() => createCommunityMutation.mutate(newCommunityData)} disabled={!newCommunityData.slug || !newCommunityData.title_en || createCommunityMutation.isPending}
+            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+            {t("admin.create")}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Edit SEO Modal */}
+      <Modal open={!!editSeo} onClose={() => setEditSeo(null)} title="Edit Page SEO">
+        {editSeo && (
+          <div className="space-y-4">
+            <InputField label="Page Path" value={editSeo.page_path} onChange={(v: string) => setEditSeo({ ...editSeo, page_path: v })} placeholder="/home" />
+            <InputField label="Title" value={editSeo.title} onChange={(v: string) => setEditSeo({ ...editSeo, title: v })} placeholder="Page Title" />
+            <InputField label="Description" value={editSeo.description} onChange={(v: string) => setEditSeo({ ...editSeo, description: v })} rows={3} placeholder="Meta description for SEO..." />
+            <InputField label="Icon URL" value={editSeo.icon_url || ""} onChange={(v: string) => setEditSeo({ ...editSeo, icon_url: v })} placeholder="https://..." />
+            {editSeo.icon_url && <img src={editSeo.icon_url} alt="Icon preview" className="w-8 h-8 rounded" />}
+            <InputField label="Social Image URL" value={editSeo.social_image_url || ""} onChange={(v: string) => setEditSeo({ ...editSeo, social_image_url: v })} placeholder="https://..." />
+            {editSeo.social_image_url && <img src={editSeo.social_image_url} alt="Social preview" className="w-full h-32 object-cover rounded-lg" />}
+            <button onClick={() => updateSeoMutation.mutate(editSeo)} disabled={updateSeoMutation.isPending}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {t("admin.save")}
+            </button>
+          </div>
+        )}
+      </Modal>
+
+      {/* New SEO Modal */}
+      <Modal open={newSeo} onClose={() => setNewSeo(false)} title="New Page SEO">
+        <div className="space-y-4">
+          <SelectField label="Page Path" value={newSeoData.page_path} onChange={(v) => setNewSeoData({ ...newSeoData, page_path: v })}
+            options={["/home", "/products", "/offers", "/about", "/profile", "/stats", "/users", "/community", "/exchange", "/map", "/admin"].map(p => ({ value: p, label: p }))} />
+          <InputField label="Title" value={newSeoData.title} onChange={(v: string) => setNewSeoData({ ...newSeoData, title: v })} placeholder="Page Title" />
+          <InputField label="Description" value={newSeoData.description} onChange={(v: string) => setNewSeoData({ ...newSeoData, description: v })} rows={3} placeholder="Meta description for SEO..." />
+          <InputField label="Icon URL" value={newSeoData.icon_url} onChange={(v: string) => setNewSeoData({ ...newSeoData, icon_url: v })} placeholder="https://..." />
+          <InputField label="Social Image URL" value={newSeoData.social_image_url} onChange={(v: string) => setNewSeoData({ ...newSeoData, social_image_url: v })} placeholder="https://..." />
+          {newSeoData.social_image_url && <img src={newSeoData.social_image_url} alt="Social preview" className="w-full h-32 object-cover rounded-lg" />}
+          <button onClick={() => createSeoMutation.mutate(newSeoData)} disabled={!newSeoData.page_path || !newSeoData.title || createSeoMutation.isPending}
             className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
             {t("admin.create")}
           </button>
