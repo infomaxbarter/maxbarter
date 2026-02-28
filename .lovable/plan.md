@@ -1,60 +1,66 @@
 
 
-## Plan: Admin Dashboard Geliştirme, Seed Data, Harita Konum Seçici, SEO-friendly URL'ler
+## Plan: Fix Broken Links, Complete Admin CRUD, System Improvements
 
-### 1. Seed Data Oluşturma
-- `src/lib/seedData.ts` dosyası oluştur. Tüm sayfalar için demo/seed veriler tanımla:
-  - 12+ ürün (farklı kategoriler, görseller, konumlar, durumlar: aktif, pasif, demo)
-  - 8+ kullanıcı profili (farklı roller, konumlar, avatarlar, biyografiler)
-  - 6+ takas talebi (pending, active, matched, completed, cancelled, coming_soon durumlarında)
-  - 6+ teklif (pending, accepted, rejected, cancelled)
-  - 4+ takas önerisi
-- Tüm sayfalarda veritabanı boşken seed data fallback olarak gösterilecek (gerçek veri varsa gerçek veri gösterilir)
+### Issues Found
 
-### 2. Harita Üzerinden Konum Seçici Bileşen
-- `src/components/LocationPicker.tsx` oluştur:
-  - Leaflet haritası üzerinde tıklayarak konum seçme
-  - Seçilen konumu marker ile gösterme
-  - lat/lng değerlerini parent'a callback ile iletme
-  - Mevcut koordinatları gösterme desteği
-- Admin Dashboard'daki tüm CRUD modallarına (ürün ekle/düzenle, profil düzenle, talep düzenle) entegre et
-- CreateProductPage ve ExchangeRequestsPage formlarına da ekle
+1. **Broken URL references**: Several pages still use old Spanish URLs (`/productos/`, `/usuarios/`) instead of English (`/products/`, `/users/`)
+   - `ProductDetailPage.tsx` line 100: `/usuarios/` should be `/users/`
+   - `UserDetailPage.tsx` line 106: `/productos/` should be `/products/`
+   - `MapPage.tsx` lines 48, 61: `/productos/` and `/usuarios/`
 
-### 3. SEO-friendly URL'ler (Slug Tabanlı Routing)
-- URL yapısını değiştir: UUID yerine başlık tabanlı slug kullan
-  - `/productos/:id` → `/productos/:slug` (slug = slugify(title)-shortId)
-  - `/usuarios/:userId` → `/usuarios/:username`
-- Yardımcı `slugify()` fonksiyonu oluştur (`src/lib/utils.ts`)
-- `ProductDetailPage`: slug'dan ID çıkar (son segment) veya title ile arama yap
-- `UserDetailPage`: username parametresi ile profil çek
-- Tüm Link'leri güncellenmiş URL formatına çevir (HomePage, UsersPage, AdminDashboard, vb.)
+2. **Admin Dashboard missing CRUD for Offers**: Offers tab has no edit modal — only status select inline. No full edit modal with message editing, product info display.
 
-### 4. Admin Dashboard Detaylandırma
-- **Overview sekmesi**: Daha fazla istatistik kartı ekle (online/offline, aktif/pasif, beklemede, yakında, iptal sayıları)
-- **Tüm sekmelerde**: Durum badge'leri renkli ve detaylı olsun (online=yeşil, offline=gri, aktif=mavi, pasif=turuncu, yakında=mor, iptal=kırmızı, demo=indigo)
-- **Kullanıcılar sekmesi**: Avatar gösterimi, son giriş tarihi, ürün sayısı sütunu
-- **Ürünler sekmesi**: Görsel önizleme büyütme, konum harita linki
-- **Teklifler sekmesi**: Ürün isimleri gösterilsin (şu an sadece kullanıcı adları var), from/to product bilgisi
-- **Talepler sekmesi**: Teklif sayısı, görsel önizleme, harita konumu
-- **Proposals sekmesi**: Yeni sekme ekle - exchange_proposals tablosu için CRUD
+3. **Admin Dashboard missing CRUD for Users**: Users can be edited and roles managed, but no delete user functionality and no "create user" option.
 
-### 5. Dosya Değişiklikleri
+4. **ExchangeRequestsPage**: Missing LocationPicker integration in the create form. Missing seed data fallback.
 
-| Dosya | İşlem |
-|-------|-------|
-| `src/lib/seedData.ts` | Yeni - tüm seed veriler |
-| `src/lib/utils.ts` | Düzenle - slugify fonksiyonu ekle |
-| `src/components/LocationPicker.tsx` | Yeni - harita konum seçici |
-| `src/App.tsx` | Düzenle - route parametreleri güncelle |
-| `src/pages/AdminDashboard.tsx` | Düzenle - detaylı dashboard, proposals sekmesi, konum seçici, seed data |
-| `src/pages/HomePage.tsx` | Düzenle - slug URL, seed data fallback |
-| `src/pages/ProductDetailPage.tsx` | Düzenle - slug tabanlı sorgulama |
-| `src/pages/UserDetailPage.tsx` | Düzenle - username tabanlı sorgulama |
-| `src/pages/UsersPage.tsx` | Düzenle - username URL, seed data |
-| `src/pages/ExchangeRequestsPage.tsx` | Düzenle - konum seçici, seed data |
-| `src/pages/CreateProductPage.tsx` | Düzenle - konum seçici |
-| `src/pages/MapPage.tsx` | Düzenle - seed data fallback |
-| `src/pages/OffersPage.tsx` | Düzenle - seed data fallback |
-| `src/pages/StatsPage.tsx` | Düzenle - seed data ile zengin istatistikler |
-| `src/contexts/I18nContext.tsx` | Düzenle - yeni çeviri anahtarları |
+5. **CreateProductPage**: Missing LocationPicker integration.
+
+6. **OffersPage**: No seed data fallback — shows empty when DB is empty.
+
+7. **Admin Offers tab**: Doesn't show product names (from_product/to_product titles).
+
+---
+
+### Implementation Steps
+
+#### 1. Fix all broken Spanish URL references
+- `ProductDetailPage.tsx`: `/usuarios/` → `/users/`
+- `UserDetailPage.tsx`: `/productos/` → `/products/`
+- `MapPage.tsx`: `/productos/` → `/products/`, `/usuarios/` → `/users/`
+
+#### 2. Enhance Admin Dashboard Offers CRUD
+- Add full edit offer modal (message, status, from/to product display)
+- Add delete offer confirmation
+- Show product titles in the offers table (from_product → to_product)
+
+#### 3. Add LocationPicker to CreateProductPage
+- Import and integrate LocationPicker below the location text input
+- Store latitude/longitude and send with product creation
+
+#### 4. Add LocationPicker to ExchangeRequestsPage create form
+- Add LocationPicker to the create request modal
+- Store lat/lng in form state and include in mutation
+
+#### 5. Add seed data fallback to OffersPage
+- Import seed data, use `withSeedFallback` when user has no offers
+- Show seed offers for guests/empty state
+
+#### 6. Add seed data fallback to ExchangeRequestsPage
+- Use `withSeedFallback` for requests list when DB returns empty
+
+---
+
+### Files to Edit
+
+| File | Changes |
+|------|---------|
+| `src/pages/ProductDetailPage.tsx` | Fix `/usuarios/` → `/users/` |
+| `src/pages/UserDetailPage.tsx` | Fix `/productos/` → `/products/` |
+| `src/pages/MapPage.tsx` | Fix `/productos/` → `/products/`, `/usuarios/` → `/users/` |
+| `src/pages/AdminDashboard.tsx` | Enhanced offers CRUD modal, product name display in offers table |
+| `src/pages/CreateProductPage.tsx` | Add LocationPicker for lat/lng |
+| `src/pages/ExchangeRequestsPage.tsx` | Add LocationPicker + seed data fallback |
+| `src/pages/OffersPage.tsx` | Add seed data fallback |
 
