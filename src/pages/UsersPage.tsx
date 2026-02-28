@@ -6,12 +6,13 @@ import { useI18n } from "@/contexts/I18nContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { seedProfiles, withSeedFallback } from "@/lib/seedData";
 
 const UsersPage = () => {
   const [search, setSearch] = useState("");
   const { t } = useI18n();
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: dbUsers = [], isLoading } = useQuery({
     queryKey: ["users", search],
     queryFn: async () => {
       let query = supabase.from("profiles").select("*").order("created_at", { ascending: false });
@@ -23,6 +24,22 @@ const UsersPage = () => {
       return data;
     },
   });
+
+  const allUsers = withSeedFallback(dbUsers, seedProfiles as any);
+  const users = dbUsers.length > 0 ? allUsers : allUsers.filter((u: any) =>
+    !search || u.username?.toLowerCase().includes(search.toLowerCase()) || u.display_name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const statusColor = (status?: string) => {
+    switch (status) {
+      case "online": return "bg-emerald-500";
+      case "offline": return "bg-muted-foreground/40";
+      case "passive": return "bg-amber-500";
+      case "demo": return "bg-indigo-500";
+      case "coming_soon": return "bg-purple-500";
+      default: return "bg-emerald-500";
+    }
+  };
 
   return (
     <div className="min-h-screen pt-20 pb-12">
@@ -41,13 +58,18 @@ const UsersPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {users.map((user, i) => (
+            {users.map((user: any, i: number) => (
               <motion.div key={user.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Link to={`/usuarios/${user.user_id}`}>
+                <Link to={`/usuarios/${user.username}`}>
                   <div className="glass-card rounded-xl p-5 hover:glow-border transition-all cursor-pointer">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                        <span className="font-display font-bold text-primary text-lg">{user.username[0]}</span>
+                      <div className="relative w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="font-display font-bold text-primary text-lg">{user.username[0]}</span>
+                        )}
+                        <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background ${statusColor(user.status)}`} />
                       </div>
                       <div className="min-w-0">
                         <h3 className="font-display font-bold text-foreground">{user.display_name || user.username}</h3>

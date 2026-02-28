@@ -7,31 +7,53 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Users, ShoppingBag, Handshake, AlertTriangle,
   Crown, UserCheck, User, Trash2, Eye, Search, ChevronDown,
-  Plus, X, Edit2, Check, Ban, RotateCcw, ArrowLeftRight, Clock, Play, Pause
+  Plus, X, Edit2, Check, Ban, RotateCcw, ArrowLeftRight, Clock, Play, Pause,
+  MessageSquare, MapPin, Globe, Zap, XCircle, Star
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, Navigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { makeProductSlug } from "@/lib/utils";
+import { seedProducts, seedProfiles, seedOffers, seedExchangeRequests, seedProposals, withSeedFallback } from "@/lib/seedData";
+import LocationPicker from "@/components/LocationPicker";
 
 type AppRole = "admin" | "moderator" | "user";
 type OfferStatus = "pending" | "accepted" | "rejected" | "cancelled";
 type ProductCategory = "electronics" | "music" | "sports" | "books" | "clothing" | "gaming" | "home" | "other";
 type RequestStatus = "pending" | "active" | "matched" | "completed" | "cancelled" | "coming_soon";
 
+// ─── Status badge helper ─────────────────────────────
+const StatusBadge = ({ status }: { status: string }) => {
+  const styles: Record<string, string> = {
+    online: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    offline: "bg-muted text-muted-foreground border-border",
+    active: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    passive: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    matched: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    completed: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    cancelled: "bg-destructive/15 text-destructive border-destructive/30",
+    coming_soon: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+    demo: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30",
+    accepted: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    rejected: "bg-destructive/15 text-destructive border-destructive/30",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border font-medium ${styles[status] || styles.pending}`}>
+      {status.replace("_", " ")}
+    </span>
+  );
+};
+
 // ─── Modal wrapper ─────────────────────────────
 const Modal = ({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) => (
   <AnimatePresence>
     {open && (
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="glass-card rounded-2xl border border-border/50 w-full max-w-lg max-h-[85vh] overflow-y-auto"
-        >
+          className="glass-card rounded-2xl border border-border/50 w-full max-w-lg max-h-[85vh] overflow-y-auto">
           <div className="flex items-center justify-between p-6 border-b border-border/30">
             <h2 className="font-display text-lg font-bold">{title}</h2>
             <button onClick={onClose} className="p-1 hover:text-destructive transition-colors"><X className="w-5 h-5" /></button>
@@ -71,7 +93,7 @@ const AdminDashboard = () => {
   const { t } = useI18n();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "products" | "offers" | "requests">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "products" | "offers" | "requests" | "proposals">("overview");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Modal states
@@ -79,8 +101,10 @@ const AdminDashboard = () => {
   const [editProfile, setEditProfile] = useState<any>(null);
   const [editOffer, setEditOffer] = useState<any>(null);
   const [editRequest, setEditRequest] = useState<any>(null);
+  const [editProposal, setEditProposal] = useState<any>(null);
   const [newProduct, setNewProduct] = useState(false);
   const [newProductData, setNewProductData] = useState({ title: "", description: "", category: "other" as ProductCategory, location: "", image_url: "", latitude: "", longitude: "" });
+  const [showLocationPicker, setShowLocationPicker] = useState<string | null>(null);
 
   // Check admin
   const { data: isAdmin, isLoading: checkingAdmin } = useQuery({
@@ -92,59 +116,53 @@ const AdminDashboard = () => {
     enabled: !!user,
   });
 
-  const { data: profiles = [] } = useQuery({
+  const { data: dbProfiles = [] } = useQuery({
     queryKey: ["admin-profiles"],
-    queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
-      return data || [];
-    },
+    queryFn: async () => { const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false }); return data || []; },
     enabled: isAdmin === true,
   });
 
   const { data: userRoles = [] } = useQuery({
     queryKey: ["admin-user-roles"],
-    queryFn: async () => {
-      const { data } = await supabase.from("user_roles").select("*");
-      return data || [];
-    },
+    queryFn: async () => { const { data } = await supabase.from("user_roles").select("*"); return data || []; },
     enabled: isAdmin === true,
   });
 
-  const { data: products = [] } = useQuery({
+  const { data: dbProducts = [] } = useQuery({
     queryKey: ["admin-products"],
-    queryFn: async () => {
-      const { data } = await supabase.from("products").select("*").order("created_at", { ascending: false });
-      return data || [];
-    },
+    queryFn: async () => { const { data } = await supabase.from("products").select("*").order("created_at", { ascending: false }); return data || []; },
     enabled: isAdmin === true,
   });
 
-  const { data: offers = [] } = useQuery({
+  const { data: dbOffers = [] } = useQuery({
     queryKey: ["admin-offers"],
-    queryFn: async () => {
-      const { data } = await supabase.from("offers").select("*").order("created_at", { ascending: false });
-      return data || [];
-    },
+    queryFn: async () => { const { data } = await supabase.from("offers").select("*").order("created_at", { ascending: false }); return data || []; },
     enabled: isAdmin === true,
   });
 
-  // Exchange requests
-  const { data: exchangeRequests = [] } = useQuery({
+  const { data: dbExchangeRequests = [] } = useQuery({
     queryKey: ["admin-exchange-requests"],
-    queryFn: async () => {
-      const { data } = await supabase.from("exchange_requests").select("*").order("created_at", { ascending: false });
-      return data || [];
-    },
+    queryFn: async () => { const { data } = await supabase.from("exchange_requests").select("*").order("created_at", { ascending: false }); return data || []; },
     enabled: isAdmin === true,
   });
+
+  const { data: dbProposals = [] } = useQuery({
+    queryKey: ["admin-proposals"],
+    queryFn: async () => { const { data } = await supabase.from("exchange_proposals").select("*").order("created_at", { ascending: false }); return data || []; },
+    enabled: isAdmin === true,
+  });
+
+  // Use seed fallback
+  const profiles = withSeedFallback(dbProfiles, seedProfiles as any);
+  const products = withSeedFallback(dbProducts, seedProducts as any);
+  const offers = withSeedFallback(dbOffers, seedOffers as any);
+  const exchangeRequests = withSeedFallback(dbExchangeRequests, seedExchangeRequests as any);
+  const proposals = withSeedFallback(dbProposals, seedProposals as any);
 
   // ─── Mutations ─────────────────────────────
   const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
-    queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-    queryClient.invalidateQueries({ queryKey: ["admin-offers"] });
-    queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
-    queryClient.invalidateQueries({ queryKey: ["admin-exchange-requests"] });
+    ["admin-profiles", "admin-products", "admin-offers", "admin-user-roles", "admin-exchange-requests", "admin-proposals"]
+      .forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
   };
 
   const roleMutation = useMutation({
@@ -196,22 +214,16 @@ const AdminDashboard = () => {
   });
 
   const deleteProductMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("products").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => { invalidateAll(); toast({ title: t("admin.productDeleted") }); },
   });
 
   const updateProfileMutation = useMutation({
     mutationFn: async (p: any) => {
       const { error } = await supabase.from("profiles").update({
-        display_name: p.display_name, username: p.username,
-        bio: p.bio, location: p.location, phone: p.phone,
-        rating: p.rating, total_exchanges: p.total_exchanges,
-        avatar_url: p.avatar_url || null,
-        latitude: p.latitude ? parseFloat(p.latitude) : null,
-        longitude: p.longitude ? parseFloat(p.longitude) : null,
+        display_name: p.display_name, username: p.username, bio: p.bio, location: p.location, phone: p.phone,
+        rating: p.rating, total_exchanges: p.total_exchanges, avatar_url: p.avatar_url || null,
+        latitude: p.latitude ? parseFloat(p.latitude) : null, longitude: p.longitude ? parseFloat(p.longitude) : null,
       }).eq("id", p.id);
       if (error) throw error;
     },
@@ -229,10 +241,7 @@ const AdminDashboard = () => {
   });
 
   const deleteOfferMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("offers").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("offers").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => { invalidateAll(); toast({ title: t("admin.offerDeleted") }); },
   });
 
@@ -246,11 +255,22 @@ const AdminDashboard = () => {
   });
 
   const deleteRequestMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("exchange_requests").delete().eq("id", id);
+    mutationFn: async (id: string) => { const { error } = await supabase.from("exchange_requests").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast({ title: t("admin.requestDeleted") }); },
+  });
+
+  const updateProposalMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      const { error } = await supabase.from("exchange_proposals").update(updates).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { invalidateAll(); toast({ title: t("admin.requestDeleted") }); },
+    onSuccess: () => { invalidateAll(); setEditProposal(null); toast({ title: "Proposal updated" }); },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteProposalMutation = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("exchange_proposals").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast({ title: "Proposal deleted" }); },
   });
 
   if (checkingAdmin) {
@@ -261,8 +281,7 @@ const AdminDashboard = () => {
 
   if (!isAdmin) return <Navigate to="/home" replace />;
 
-  const getRolesForUser = (userId: string) =>
-    userRoles.filter((r: any) => r.user_id === userId).map((r: any) => r.role as AppRole);
+  const getRolesForUser = (userId: string) => userRoles.filter((r: any) => r.user_id === userId).map((r: any) => r.role as AppRole);
 
   const roleIcon = (role: AppRole) => {
     if (role === "admin") return <Crown className="w-3 h-3" />;
@@ -284,27 +303,57 @@ const AdminDashboard = () => {
   const categories: ProductCategory[] = ["electronics", "music", "sports", "books", "clothing", "gaming", "home", "other"];
   const catOptions = categories.map((c) => ({ value: c, label: t(`cat.${c}`) || c }));
 
+  const getProfileName = (userId: string | null) => {
+    if (!userId) return t("exchange.anonymous");
+    const p = profiles.find((pr: any) => pr.user_id === userId);
+    return p ? ((p as any).display_name || (p as any).username) : userId.slice(0, 8);
+  };
+
+  const getProductTitle = (productId: string) => {
+    const p = products.find((pr: any) => pr.id === productId);
+    return p ? (p as any).title : productId.slice(0, 8);
+  };
+
+  const getRequestTitle = (requestId: string) => {
+    const r = exchangeRequests.find((req: any) => req.id === requestId);
+    return r ? (r as any).title : requestId.slice(0, 8);
+  };
+
+  // Stats
+  const pendingOffers = offers.filter((o: any) => o.status === "pending").length;
+  const acceptedOffers = offers.filter((o: any) => o.status === "accepted").length;
+  const pendingRequests = exchangeRequests.filter((r: any) => r.status === "pending").length;
+  const activeRequests = exchangeRequests.filter((r: any) => r.status === "active").length;
+  const matchedRequests = exchangeRequests.filter((r: any) => r.status === "matched").length;
+  const completedRequests = exchangeRequests.filter((r: any) => r.status === "completed").length;
+  const cancelledRequests = exchangeRequests.filter((r: any) => r.status === "cancelled").length;
+  const comingSoonRequests = exchangeRequests.filter((r: any) => r.status === "coming_soon").length;
+  const onlineUsers = profiles.filter((p: any) => (p as any).status === "online").length;
+  const offlineUsers = profiles.filter((p: any) => (p as any).status === "offline").length;
+
   const stats = [
     { label: t("admin.totalUsers"), value: profiles.length, icon: Users, color: "text-blue-400" },
+    { label: "Online", value: onlineUsers, icon: Globe, color: "text-emerald-400" },
     { label: t("admin.totalProducts"), value: products.length, icon: ShoppingBag, color: "text-green-400" },
     { label: t("admin.totalOffers"), value: offers.length, icon: Handshake, color: "text-primary" },
-    { label: t("admin.pendingOffers"), value: offers.filter((o: any) => o.status === "pending").length, icon: AlertTriangle, color: "text-yellow-400" },
+    { label: t("admin.pendingOffers"), value: pendingOffers, icon: AlertTriangle, color: "text-yellow-400" },
     { label: t("admin.totalRequests"), value: exchangeRequests.length, icon: ArrowLeftRight, color: "text-purple-400" },
-    { label: t("admin.pendingRequests"), value: exchangeRequests.filter((r: any) => r.status === "pending").length, icon: Clock, color: "text-pink-400" },
+    { label: t("admin.pendingRequests"), value: pendingRequests, icon: Clock, color: "text-pink-400" },
+    { label: t("exchange.status.active"), value: activeRequests, icon: Zap, color: "text-blue-400" },
+    { label: t("exchange.status.matched"), value: matchedRequests, icon: Check, color: "text-emerald-400" },
+    { label: t("exchange.status.completed"), value: completedRequests, icon: Star, color: "text-primary" },
+    { label: t("exchange.status.cancelled"), value: cancelledRequests, icon: XCircle, color: "text-destructive" },
+    { label: t("exchange.status.coming_soon"), value: comingSoonRequests, icon: Clock, color: "text-purple-400" },
   ];
 
   const tabs = [
-    { key: "overview" as const, label: t("admin.overview") },
-    { key: "users" as const, label: t("admin.users") },
-    { key: "products" as const, label: t("admin.products") },
-    { key: "offers" as const, label: t("admin.offers") },
-    { key: "requests" as const, label: t("admin.requests") },
+    { key: "overview" as const, label: t("admin.overview"), icon: Shield },
+    { key: "users" as const, label: t("admin.users"), icon: Users },
+    { key: "products" as const, label: t("admin.products"), icon: ShoppingBag },
+    { key: "offers" as const, label: t("admin.offers"), icon: Handshake },
+    { key: "requests" as const, label: t("admin.requests"), icon: ArrowLeftRight },
+    { key: "proposals" as const, label: t("exchange.proposals"), icon: MessageSquare },
   ];
-
-  const getProfileName = (userId: string) => {
-    const p = profiles.find((pr: any) => pr.user_id === userId);
-    return p ? (p as any).display_name || (p as any).username : userId.slice(0, 8);
-  };
 
   return (
     <div className="min-h-screen pt-20 pb-16">
@@ -318,27 +367,29 @@ const AdminDashboard = () => {
         </motion.div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-8 glass-card rounded-lg p-1 w-fit">
+        <div className="flex gap-1 mb-8 glass-card rounded-lg p-1 w-fit flex-wrap">
           {tabs.map((tab) => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
                 activeTab === tab.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}>{tab.label}</button>
+              }`}>
+              <tab.icon className="w-4 h-4" /> {tab.label}
+            </button>
           ))}
         </div>
 
         {/* ═══ OVERVIEW ═══ */}
         {activeTab === "overview" && (
           <div className="space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
               {stats.map((stat, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                  className="glass-card rounded-xl p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                    <span className="font-display text-3xl font-bold">{stat.value}</span>
+                <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                  className="glass-card rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                    <span className="font-display text-2xl font-bold">{stat.value}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </motion.div>
               ))}
             </div>
@@ -349,8 +400,9 @@ const AdminDashboard = () => {
                   {profiles.slice(0, 5).map((p: any) => (
                     <div key={p.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">
-                          {(p.username || "?")[0].toUpperCase()}
+                        <div className="relative w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-sm font-bold text-primary overflow-hidden">
+                          {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : (p.username || "?")[0].toUpperCase()}
+                          {p.status && <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-background ${p.status === "online" ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />}
                         </div>
                         <div>
                           <p className="text-sm font-medium">{p.display_name || p.username}</p>
@@ -363,6 +415,7 @@ const AdminDashboard = () => {
                             {roleIcon(role)} {role}
                           </span>
                         ))}
+                        {p.status && <StatusBadge status={p.status} />}
                       </div>
                     </div>
                   ))}
@@ -375,11 +428,9 @@ const AdminDashboard = () => {
                     <div key={o.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
                       <div>
                         <p className="text-sm font-medium">{getProfileName(o.from_user_id)} → {getProfileName(o.to_user_id)}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground">{getProductTitle(o.from_product_id)} ↔ {getProductTitle(o.to_product_id)}</p>
                       </div>
-                      <Badge variant={o.status === "accepted" ? "default" : o.status === "rejected" ? "destructive" : "secondary"}>
-                        {o.status}
-                      </Badge>
+                      <StatusBadge status={o.status} />
                     </div>
                   ))}
                   {offers.length === 0 && <p className="text-sm text-muted-foreground">{t("admin.noData")}</p>}
@@ -404,23 +455,26 @@ const AdminDashboard = () => {
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.user")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.roles")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.location")}</th>
-                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.joined")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.rating")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden lg:table-cell">{t("admin.joined")}</th>
                     <th className="text-right p-4 text-muted-foreground font-medium">{t("admin.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredProfiles.map((p: any) => {
                     const roles = getRolesForUser(p.user_id);
+                    const userProductCount = products.filter((pr: any) => pr.user_id === p.user_id).length;
                     return (
                       <tr key={p.id} className="border-b border-border/20 hover:bg-secondary/30 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">
-                              {(p.username || "?")[0].toUpperCase()}
+                            <div className="relative w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center text-sm font-bold text-primary overflow-hidden">
+                              {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : (p.username || "?")[0].toUpperCase()}
+                              {p.status && <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-background ${p.status === "online" ? "bg-emerald-500" : p.status === "offline" ? "bg-muted-foreground/40" : "bg-amber-500"}`} />}
                             </div>
                             <div>
                               <p className="font-medium">{p.display_name || p.username}</p>
-                              <p className="text-xs text-muted-foreground">@{p.username}</p>
+                              <p className="text-xs text-muted-foreground">@{p.username} · {userProductCount} {t("profile.products").toLowerCase()}</p>
                             </div>
                           </div>
                         </td>
@@ -430,25 +484,26 @@ const AdminDashboard = () => {
                               <span key={role} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border ${roleColor(role)}`}>
                                 {roleIcon(role)} {role}
                                 {role !== "user" && p.user_id !== user?.id && (
-                                  <button onClick={() => roleMutation.mutate({ userId: p.user_id, role, action: "remove" })}
-                                    className="ml-1 hover:text-destructive">×</button>
+                                  <button onClick={() => roleMutation.mutate({ userId: p.user_id, role, action: "remove" })} className="ml-1 hover:text-destructive">×</button>
                                 )}
                               </span>
                             ))}
-                            {p.user_id !== user?.id && (
+                            {p.user_id !== user?.id && !p.user_id.startsWith("seed-") && (
                               <RoleDropdown currentRoles={roles} onAdd={(role) => roleMutation.mutate({ userId: p.user_id, role, action: "add" })} />
                             )}
                           </div>
                         </td>
-                        <td className="p-4 text-muted-foreground hidden md:table-cell">{p.location || "—"}</td>
-                        <td className="p-4 text-muted-foreground hidden md:table-cell">{new Date(p.created_at).toLocaleDateString()}</td>
+                        <td className="p-4 text-muted-foreground hidden md:table-cell">
+                          {p.location || "—"}
+                          {p.latitude && <span className="text-xs ml-1">📍</span>}
+                        </td>
+                        <td className="p-4 text-muted-foreground hidden md:table-cell">
+                          {p.rating ? <span className="text-primary font-medium">★ {p.rating}</span> : "—"}
+                        </td>
+                        <td className="p-4 text-muted-foreground hidden lg:table-cell">{new Date(p.created_at).toLocaleDateString()}</td>
                         <td className="p-4 text-right space-x-1">
-                          <button onClick={() => setEditProfile({ ...p })} className="p-2 hover:text-primary transition-colors inline-block">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <Link to={`/usuarios/${p.user_id}`} className="p-2 hover:text-primary transition-colors inline-block">
-                            <Eye className="w-4 h-4" />
-                          </Link>
+                          <button onClick={() => setEditProfile({ ...p })} className="p-2 hover:text-primary transition-colors inline-block"><Edit2 className="w-4 h-4" /></button>
+                          <Link to={`/usuarios/${p.username}`} className="p-2 hover:text-primary transition-colors inline-block"><Eye className="w-4 h-4" /></Link>
                         </td>
                       </tr>
                     );
@@ -477,7 +532,7 @@ const AdminDashboard = () => {
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.owner")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.category")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.status")}</th>
-                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.date")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.location")}</th>
                     <th className="text-right p-4 text-muted-foreground font-medium">{t("admin.actions")}</th>
                   </tr>
                 </thead>
@@ -487,11 +542,9 @@ const AdminDashboard = () => {
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           {p.image_url ? (
-                            <img src={p.image_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                            <img src={p.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                              <ShoppingBag className="w-4 h-4 text-muted-foreground" />
-                            </div>
+                            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center"><ShoppingBag className="w-4 h-4 text-muted-foreground" /></div>
                           )}
                           <span className="font-medium">{p.title}</span>
                         </div>
@@ -499,22 +552,26 @@ const AdminDashboard = () => {
                       <td className="p-4 text-muted-foreground">{getProfileName(p.user_id)}</td>
                       <td className="p-4"><Badge variant="secondary">{t(`cat.${p.category}`) || p.category}</Badge></td>
                       <td className="p-4">
-                        <Badge variant={p.is_available ? "default" : "secondary"}>
-                          {p.is_available ? t("admin.available") : t("admin.unavailable")}
-                        </Badge>
+                        {p.status ? <StatusBadge status={p.status} /> : (
+                          <Badge variant={p.is_available ? "default" : "secondary"}>
+                            {p.is_available ? t("admin.available") : t("admin.unavailable")}
+                          </Badge>
+                        )}
                       </td>
-                      <td className="p-4 text-muted-foreground hidden md:table-cell">{new Date(p.created_at).toLocaleDateString()}</td>
+                      <td className="p-4 text-muted-foreground hidden md:table-cell">
+                        {p.location || "—"}
+                        {p.latitude && (
+                          <a href={`https://www.openstreetmap.org/?mlat=${p.latitude}&mlon=${p.longitude}#map=15/${p.latitude}/${p.longitude}`}
+                            target="_blank" rel="noreferrer" className="ml-1 text-primary hover:underline text-xs">📍</a>
+                        )}
+                      </td>
                       <td className="p-4 text-right space-x-1">
-                        <button onClick={() => setEditProduct({ ...p })} className="p-2 hover:text-primary transition-colors inline-block">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <Link to={`/productos/${p.id}`} className="p-2 hover:text-primary transition-colors inline-block">
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteProductMutation.mutate(p.id); }}
-                          className="p-2 hover:text-destructive transition-colors inline-block">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <button onClick={() => setEditProduct({ ...p, latitude: p.latitude || "", longitude: p.longitude || "" })} className="p-2 hover:text-primary transition-colors inline-block"><Edit2 className="w-4 h-4" /></button>
+                        <Link to={`/productos/${makeProductSlug(p.title, p.id)}`} className="p-2 hover:text-primary transition-colors inline-block"><Eye className="w-4 h-4" /></Link>
+                        {!p.id.startsWith("seed-") && (
+                          <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteProductMutation.mutate(p.id); }}
+                            className="p-2 hover:text-destructive transition-colors inline-block"><Trash2 className="w-4 h-4" /></button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -534,9 +591,9 @@ const AdminDashboard = () => {
                   <tr className="border-b border-border/50">
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.from")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.to")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.product")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.status")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.message")}</th>
-                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.date")}</th>
                     <th className="text-right p-4 text-muted-foreground font-medium">{t("admin.actions")}</th>
                   </tr>
                 </thead>
@@ -545,42 +602,30 @@ const AdminDashboard = () => {
                     <tr key={o.id} className="border-b border-border/20 hover:bg-secondary/30 transition-colors">
                       <td className="p-4 font-medium">{getProfileName(o.from_user_id)}</td>
                       <td className="p-4 font-medium">{getProfileName(o.to_user_id)}</td>
-                      <td className="p-4">
-                        <Badge variant={o.status === "accepted" ? "default" : o.status === "rejected" ? "destructive" : "secondary"}>
-                          {o.status}
-                        </Badge>
+                      <td className="p-4 text-muted-foreground hidden md:table-cell text-xs">
+                        {getProductTitle(o.from_product_id)} ↔ {getProductTitle(o.to_product_id)}
                       </td>
+                      <td className="p-4"><StatusBadge status={o.status} /></td>
                       <td className="p-4 text-muted-foreground max-w-xs truncate hidden md:table-cell">{o.message || "—"}</td>
-                      <td className="p-4 text-muted-foreground hidden md:table-cell">{new Date(o.created_at).toLocaleDateString()}</td>
                       <td className="p-4 text-right space-x-1">
-                        {o.status === "pending" && (
+                        {!o.id.startsWith("seed-") && (
                           <>
-                            <button onClick={() => updateOfferMutation.mutate({ id: o.id, status: "accepted" })}
-                              className="p-2 hover:text-green-400 transition-colors inline-block" title={t("admin.accept")}>
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => updateOfferMutation.mutate({ id: o.id, status: "rejected" })}
-                              className="p-2 hover:text-destructive transition-colors inline-block" title={t("admin.reject")}>
-                              <Ban className="w-4 h-4" />
-                            </button>
+                            {o.status === "pending" && (
+                              <>
+                                <button onClick={() => updateOfferMutation.mutate({ id: o.id, status: "accepted" })} className="p-2 hover:text-emerald-400 transition-colors inline-block"><Check className="w-4 h-4" /></button>
+                                <button onClick={() => updateOfferMutation.mutate({ id: o.id, status: "rejected" })} className="p-2 hover:text-destructive transition-colors inline-block"><Ban className="w-4 h-4" /></button>
+                              </>
+                            )}
+                            {o.status !== "pending" && (
+                              <button onClick={() => updateOfferMutation.mutate({ id: o.id, status: "pending" })} className="p-2 hover:text-primary transition-colors inline-block"><RotateCcw className="w-4 h-4" /></button>
+                            )}
+                            <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteOfferMutation.mutate(o.id); }} className="p-2 hover:text-destructive transition-colors inline-block"><Trash2 className="w-4 h-4" /></button>
                           </>
                         )}
-                        {o.status !== "pending" && (
-                          <button onClick={() => updateOfferMutation.mutate({ id: o.id, status: "pending" })}
-                            className="p-2 hover:text-primary transition-colors inline-block" title={t("admin.resetToPending")}>
-                            <RotateCcw className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteOfferMutation.mutate(o.id); }}
-                          className="p-2 hover:text-destructive transition-colors inline-block">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </td>
                     </tr>
                   ))}
-                  {offers.length === 0 && (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("admin.noData")}</td></tr>
-                  )}
+                  {offers.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("admin.noData")}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -599,59 +644,95 @@ const AdminDashboard = () => {
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("exchange.type")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.user")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.status")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("exchange.proposals")}</th>
+                    <th className="text-right p-4 text-muted-foreground font-medium">{t("admin.actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exchangeRequests.map((r: any) => {
+                    const reqProposals = proposals.filter((p: any) => p.request_id === r.id);
+                    return (
+                      <tr key={r.id} className="border-b border-border/20 hover:bg-secondary/30 transition-colors">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            {r.image_url && <img src={r.image_url} alt="" className="w-10 h-10 rounded-lg object-cover" />}
+                            <div>
+                              <p className="font-medium">{r.title}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{r.offer_description?.slice(0, 40)}...</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4"><Badge variant="secondary">{r.type === "product" ? t("exchange.product") : t("exchange.service")}</Badge></td>
+                        <td className="p-4 text-muted-foreground">{r.is_anonymous ? t("exchange.anonymous") : getProfileName(r.user_id)}</td>
+                        <td className="p-4">
+                          {!r.id.startsWith("seed-") ? (
+                            <select value={r.status}
+                              onChange={(e) => updateRequestMutation.mutate({ id: r.id, updates: { status: e.target.value } })}
+                              className="px-2 py-1 rounded border border-border/50 bg-secondary/30 text-xs text-foreground">
+                              {(["pending", "active", "matched", "completed", "cancelled", "coming_soon"] as RequestStatus[]).map((s) => (
+                                <option key={s} value={s}>{t(`exchange.status.${s}`)}</option>
+                              ))}
+                            </select>
+                          ) : <StatusBadge status={r.status} />}
+                        </td>
+                        <td className="p-4 text-muted-foreground hidden md:table-cell">
+                          <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" /> {reqProposals.length}</span>
+                        </td>
+                        <td className="p-4 text-right space-x-1">
+                          <button onClick={() => setEditRequest({ ...r, latitude: r.latitude || "", longitude: r.longitude || "" })} className="p-2 hover:text-primary transition-colors inline-block"><Edit2 className="w-4 h-4" /></button>
+                          {!r.id.startsWith("seed-") && (
+                            <>
+                              {r.status === "pending" && <button onClick={() => updateRequestMutation.mutate({ id: r.id, updates: { status: "active" } })} className="p-2 hover:text-emerald-400 transition-colors inline-block"><Play className="w-4 h-4" /></button>}
+                              {r.status === "active" && <button onClick={() => updateRequestMutation.mutate({ id: r.id, updates: { status: "pending" } })} className="p-2 hover:text-amber-400 transition-colors inline-block"><Pause className="w-4 h-4" /></button>}
+                              <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteRequestMutation.mutate(r.id); }} className="p-2 hover:text-destructive transition-colors inline-block"><Trash2 className="w-4 h-4" /></button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {exchangeRequests.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("admin.noData")}</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ PROPOSALS ═══ */}
+        {activeTab === "proposals" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{proposals.length} {t("exchange.proposals")}</p>
+            <div className="glass-card rounded-xl overflow-hidden overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.user")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium">{t("exchange.requestTitle")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.message")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.status")}</th>
                     <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.date")}</th>
                     <th className="text-right p-4 text-muted-foreground font-medium">{t("admin.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {exchangeRequests.map((r: any) => (
-                    <tr key={r.id} className="border-b border-border/20 hover:bg-secondary/30 transition-colors">
-                      <td className="p-4">
-                        <div>
-                          <p className="font-medium">{r.title}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{r.offer_description?.slice(0, 40)}...</p>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <Badge variant="secondary">{r.type === "product" ? t("exchange.product") : t("exchange.service")}</Badge>
-                      </td>
-                      <td className="p-4 text-muted-foreground">{r.is_anonymous ? t("exchange.anonymous") : getProfileName(r.user_id)}</td>
-                      <td className="p-4">
-                        <select value={r.status}
-                          onChange={(e) => updateRequestMutation.mutate({ id: r.id, updates: { status: e.target.value } })}
-                          className="px-2 py-1 rounded border border-border/50 bg-secondary/30 text-xs text-foreground">
-                          {(["pending", "active", "matched", "completed", "cancelled", "coming_soon"] as RequestStatus[]).map((s) => (
-                            <option key={s} value={s}>{t(`exchange.status.${s}`)}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-4 text-muted-foreground hidden md:table-cell">{new Date(r.created_at).toLocaleDateString()}</td>
+                  {proposals.map((p: any) => (
+                    <tr key={p.id} className="border-b border-border/20 hover:bg-secondary/30 transition-colors">
+                      <td className="p-4 font-medium">{p.is_anonymous ? t("exchange.anonymous") : getProfileName(p.user_id)}</td>
+                      <td className="p-4 text-muted-foreground">{getRequestTitle(p.request_id)}</td>
+                      <td className="p-4 text-muted-foreground max-w-xs truncate">{p.message}</td>
+                      <td className="p-4"><StatusBadge status={p.status} /></td>
+                      <td className="p-4 text-muted-foreground hidden md:table-cell">{new Date(p.created_at).toLocaleDateString()}</td>
                       <td className="p-4 text-right space-x-1">
-                        <button onClick={() => setEditRequest({ ...r })} className="p-2 hover:text-primary transition-colors inline-block">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        {r.status === "pending" && (
-                          <button onClick={() => updateRequestMutation.mutate({ id: r.id, updates: { status: "active" } })}
-                            className="p-2 hover:text-emerald-400 transition-colors inline-block" title="Activate">
-                            <Play className="w-4 h-4" />
-                          </button>
+                        {!p.id.startsWith("seed-") && (
+                          <>
+                            <button onClick={() => setEditProposal({ ...p })} className="p-2 hover:text-primary transition-colors inline-block"><Edit2 className="w-4 h-4" /></button>
+                            <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteProposalMutation.mutate(p.id); }} className="p-2 hover:text-destructive transition-colors inline-block"><Trash2 className="w-4 h-4" /></button>
+                          </>
                         )}
-                        {r.status === "active" && (
-                          <button onClick={() => updateRequestMutation.mutate({ id: r.id, updates: { status: "pending" } })}
-                            className="p-2 hover:text-amber-400 transition-colors inline-block" title="Pause">
-                            <Pause className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteRequestMutation.mutate(r.id); }}
-                          className="p-2 hover:text-destructive transition-colors inline-block">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </td>
                     </tr>
                   ))}
-                  {exchangeRequests.length === 0 && (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("admin.noData")}</td></tr>
-                  )}
+                  {proposals.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("admin.noData")}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -670,9 +751,14 @@ const AdminDashboard = () => {
             <SelectField label={t("admin.category")} value={editProduct.category} onChange={(v) => setEditProduct({ ...editProduct, category: v })} options={catOptions} />
             <InputField label={t("admin.location")} value={editProduct.location || ""} onChange={(v: string) => setEditProduct({ ...editProduct, location: v })} />
             <InputField label={t("admin.imageUrl")} value={editProduct.image_url || ""} onChange={(v: string) => setEditProduct({ ...editProduct, image_url: v })} placeholder="https://..." />
-            <div className="grid grid-cols-2 gap-4">
-              <InputField label={t("admin.latitude")} type="number" value={editProduct.latitude || ""} onChange={(v: string) => setEditProduct({ ...editProduct, latitude: v })} />
-              <InputField label={t("admin.longitude")} type="number" value={editProduct.longitude || ""} onChange={(v: string) => setEditProduct({ ...editProduct, longitude: v })} />
+            {editProduct.image_url && <img src={editProduct.image_url} alt="" className="w-full h-32 object-cover rounded-lg" />}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">{t("admin.location")} (Harita)</label>
+              <LocationPicker
+                latitude={editProduct.latitude ? parseFloat(editProduct.latitude) : null}
+                longitude={editProduct.longitude ? parseFloat(editProduct.longitude) : null}
+                onChange={(lat, lng) => setEditProduct({ ...editProduct, latitude: lat.toString(), longitude: lng.toString() })}
+              />
             </div>
             <div className="flex items-center gap-3">
               <label className="text-sm font-medium text-muted-foreground">{t("admin.available")}</label>
@@ -681,8 +767,7 @@ const AdminDashboard = () => {
                 <div className={`w-4 h-4 rounded-full bg-primary-foreground mx-1 transition-transform ${editProduct.is_available ? "translate-x-4" : ""}`} />
               </button>
             </div>
-            <button onClick={() => updateProductMutation.mutate(editProduct)}
-              disabled={updateProductMutation.isPending}
+            <button onClick={() => updateProductMutation.mutate(editProduct)} disabled={updateProductMutation.isPending}
               className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
               {t("admin.save")}
             </button>
@@ -698,12 +783,15 @@ const AdminDashboard = () => {
           <SelectField label={t("admin.category")} value={newProductData.category} onChange={(v) => setNewProductData({ ...newProductData, category: v as ProductCategory })} options={catOptions} />
           <InputField label={t("admin.location")} value={newProductData.location} onChange={(v: string) => setNewProductData({ ...newProductData, location: v })} />
           <InputField label={t("admin.imageUrl")} value={newProductData.image_url} onChange={(v: string) => setNewProductData({ ...newProductData, image_url: v })} placeholder="https://..." />
-          <div className="grid grid-cols-2 gap-4">
-            <InputField label={t("admin.latitude")} type="number" value={newProductData.latitude} onChange={(v: string) => setNewProductData({ ...newProductData, latitude: v })} />
-            <InputField label={t("admin.longitude")} type="number" value={newProductData.longitude} onChange={(v: string) => setNewProductData({ ...newProductData, longitude: v })} />
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-muted-foreground">{t("admin.location")} (Harita)</label>
+            <LocationPicker
+              latitude={newProductData.latitude ? parseFloat(newProductData.latitude) : null}
+              longitude={newProductData.longitude ? parseFloat(newProductData.longitude) : null}
+              onChange={(lat, lng) => setNewProductData({ ...newProductData, latitude: lat.toString(), longitude: lng.toString() })}
+            />
           </div>
-          <button onClick={() => createProductMutation.mutate(newProductData)}
-            disabled={!newProductData.title || createProductMutation.isPending}
+          <button onClick={() => createProductMutation.mutate(newProductData)} disabled={!newProductData.title || createProductMutation.isPending}
             className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
             {t("admin.create")}
           </button>
@@ -717,6 +805,7 @@ const AdminDashboard = () => {
             <InputField label={t("admin.username")} value={editProfile.username} onChange={(v: string) => setEditProfile({ ...editProfile, username: v })} />
             <InputField label={t("admin.displayName")} value={editProfile.display_name || ""} onChange={(v: string) => setEditProfile({ ...editProfile, display_name: v })} />
             <InputField label={t("admin.avatarUrl")} value={editProfile.avatar_url || ""} onChange={(v: string) => setEditProfile({ ...editProfile, avatar_url: v })} placeholder="https://..." />
+            {editProfile.avatar_url && <img src={editProfile.avatar_url} alt="" className="w-16 h-16 rounded-full object-cover" />}
             <InputField label={t("admin.bio")} value={editProfile.bio || ""} onChange={(v: string) => setEditProfile({ ...editProfile, bio: v })} rows={3} />
             <InputField label={t("admin.location")} value={editProfile.location || ""} onChange={(v: string) => setEditProfile({ ...editProfile, location: v })} />
             <InputField label={t("admin.phone")} value={editProfile.phone || ""} onChange={(v: string) => setEditProfile({ ...editProfile, phone: v })} />
@@ -724,12 +813,15 @@ const AdminDashboard = () => {
               <InputField label={t("admin.rating")} type="number" value={editProfile.rating || 0} onChange={(v: string) => setEditProfile({ ...editProfile, rating: parseFloat(v) || 0 })} />
               <InputField label={t("admin.exchanges")} type="number" value={editProfile.total_exchanges || 0} onChange={(v: string) => setEditProfile({ ...editProfile, total_exchanges: parseInt(v) || 0 })} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <InputField label={t("admin.latitude")} type="number" value={editProfile.latitude || ""} onChange={(v: string) => setEditProfile({ ...editProfile, latitude: v })} />
-              <InputField label={t("admin.longitude")} type="number" value={editProfile.longitude || ""} onChange={(v: string) => setEditProfile({ ...editProfile, longitude: v })} />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">{t("admin.location")} (Harita)</label>
+              <LocationPicker
+                latitude={editProfile.latitude ? parseFloat(editProfile.latitude) : null}
+                longitude={editProfile.longitude ? parseFloat(editProfile.longitude) : null}
+                onChange={(lat, lng) => setEditProfile({ ...editProfile, latitude: lat.toString(), longitude: lng.toString() })}
+              />
             </div>
-            <button onClick={() => updateProfileMutation.mutate(editProfile)}
-              disabled={updateProfileMutation.isPending}
+            <button onClick={() => updateProfileMutation.mutate(editProfile)} disabled={updateProfileMutation.isPending}
               className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
               {t("admin.save")}
             </button>
@@ -746,10 +838,15 @@ const AdminDashboard = () => {
             <InputField label={t("exchange.whatYouOffer")} value={editRequest.offer_description} onChange={(v: string) => setEditRequest({ ...editRequest, offer_description: v })} rows={2} />
             <InputField label={t("exchange.whatYouWant")} value={editRequest.request_description} onChange={(v: string) => setEditRequest({ ...editRequest, request_description: v })} rows={2} />
             <InputField label={t("admin.imageUrl")} value={editRequest.image_url || ""} onChange={(v: string) => setEditRequest({ ...editRequest, image_url: v })} placeholder="https://..." />
+            {editRequest.image_url && <img src={editRequest.image_url} alt="" className="w-full h-32 object-cover rounded-lg" />}
             <InputField label={t("admin.location")} value={editRequest.location || ""} onChange={(v: string) => setEditRequest({ ...editRequest, location: v })} />
-            <div className="grid grid-cols-2 gap-4">
-              <InputField label={t("admin.latitude")} type="number" value={editRequest.latitude || ""} onChange={(v: string) => setEditRequest({ ...editRequest, latitude: v })} />
-              <InputField label={t("admin.longitude")} type="number" value={editRequest.longitude || ""} onChange={(v: string) => setEditRequest({ ...editRequest, longitude: v })} />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">{t("admin.location")} (Harita)</label>
+              <LocationPicker
+                latitude={editRequest.latitude ? parseFloat(editRequest.latitude) : null}
+                longitude={editRequest.longitude ? parseFloat(editRequest.longitude) : null}
+                onChange={(lat, lng) => setEditRequest({ ...editRequest, latitude: lat.toString(), longitude: lng.toString() })}
+              />
             </div>
             <SelectField label={t("admin.status")} value={editRequest.status} onChange={(v) => setEditRequest({ ...editRequest, status: v })}
               options={["pending", "active", "matched", "completed", "cancelled", "coming_soon"].map(s => ({ value: s, label: t(`exchange.status.${s}`) }))} />
@@ -767,6 +864,27 @@ const AdminDashboard = () => {
               };
               updateRequestMutation.mutate({ id: editRequest.id, updates });
               setEditRequest(null);
+            }}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {t("admin.save")}
+            </button>
+          </div>
+        )}
+      </Modal>
+
+      {/* Edit Proposal Modal */}
+      <Modal open={!!editProposal} onClose={() => setEditProposal(null)} title="Edit Proposal">
+        {editProposal && (
+          <div className="space-y-4">
+            <InputField label={t("admin.message")} value={editProposal.message} onChange={(v: string) => setEditProposal({ ...editProposal, message: v })} rows={3} />
+            <SelectField label={t("admin.status")} value={editProposal.status} onChange={(v) => setEditProposal({ ...editProposal, status: v })}
+              options={["pending", "active", "matched", "completed", "cancelled", "coming_soon"].map(s => ({ value: s, label: t(`exchange.status.${s}`) }))} />
+            <InputField label="Contact Info" value={editProposal.contact_info || ""} onChange={(v: string) => setEditProposal({ ...editProposal, contact_info: v })} />
+            <button onClick={() => {
+              updateProposalMutation.mutate({
+                id: editProposal.id,
+                updates: { message: editProposal.message, status: editProposal.status, contact_info: editProposal.contact_info || null }
+              });
             }}
               className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
               {t("admin.save")}
