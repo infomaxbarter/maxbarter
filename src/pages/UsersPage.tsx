@@ -3,20 +3,26 @@ import { Search, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useI18n } from "@/contexts/I18nContext";
-
-const mockUsers = [
-  { name: "Carlos M.", location: "Madrid", products: 8, rating: 4.5 },
-  { name: "Ana R.", location: "Barcelona", products: 12, rating: 4.8 },
-  { name: "Pedro L.", location: "Valencia", products: 5, rating: 3.9 },
-  { name: "Laura G.", location: "Sevilla", products: 15, rating: 4.7 },
-  { name: "Marta S.", location: "Bilbao", products: 3, rating: 4.2 },
-  { name: "David E.", location: "Málaga", products: 7, rating: 4.0 },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
 const UsersPage = () => {
   const [search, setSearch] = useState("");
   const { t } = useI18n();
-  const filtered = mockUsers.filter((u) => u.name.toLowerCase().includes(search.toLowerCase()));
+
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ["users", search],
+    queryFn: async () => {
+      let query = supabase.from("profiles").select("*").order("created_at", { ascending: false });
+      if (search) {
+        query = query.or(`username.ilike.%${search}%,display_name.ilike.%${search}%`);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
 
   return (
     <div className="min-h-screen pt-20 pb-12">
@@ -29,25 +35,38 @@ const UsersPage = () => {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((user, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="glass-card rounded-xl p-5 hover:glow-border transition-all cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                  <span className="font-display font-bold text-primary text-lg">{user.name[0]}</span>
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-display font-bold text-foreground">{user.name}</h3>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" /> {user.location}</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
-                <span>{user.products} {t("users.products")}</span>
-                <span className="text-primary font-medium">★ {user.rating}</span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[...Array(6)].map((_, i) => <div key={i} className="glass-card rounded-xl h-28 animate-pulse" />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {users.map((user, i) => (
+              <motion.div key={user.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                <Link to={`/usuarios/${user.user_id}`}>
+                  <div className="glass-card rounded-xl p-5 hover:glow-border transition-all cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                        <span className="font-display font-bold text-primary text-lg">{user.username[0]}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-display font-bold text-foreground">{user.display_name || user.username}</h3>
+                        <p className="text-xs text-muted-foreground">@{user.username}</p>
+                        {user.location && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3" /> {user.location}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+                      <span>{user.total_exchanges || 0} {t("profile.exchanges").toLowerCase()}</span>
+                      {user.rating && user.rating > 0 && <span className="text-primary font-medium">★ {user.rating}</span>}
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
