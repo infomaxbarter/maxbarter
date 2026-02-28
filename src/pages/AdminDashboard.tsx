@@ -78,8 +78,9 @@ const AdminDashboard = () => {
   const [editProduct, setEditProduct] = useState<any>(null);
   const [editProfile, setEditProfile] = useState<any>(null);
   const [editOffer, setEditOffer] = useState<any>(null);
+  const [editRequest, setEditRequest] = useState<any>(null);
   const [newProduct, setNewProduct] = useState(false);
-  const [newProductData, setNewProductData] = useState({ title: "", description: "", category: "other" as ProductCategory, location: "" });
+  const [newProductData, setNewProductData] = useState({ title: "", description: "", category: "other" as ProductCategory, location: "", image_url: "", latitude: "", longitude: "" });
 
   // Check admin
   const { data: isAdmin, isLoading: checkingAdmin } = useQuery({
@@ -164,7 +165,10 @@ const AdminDashboard = () => {
     mutationFn: async (p: any) => {
       const { error } = await supabase.from("products").update({
         title: p.title, description: p.description, category: p.category,
-        location: p.location, is_available: p.is_available
+        location: p.location, is_available: p.is_available,
+        image_url: p.image_url || null,
+        latitude: p.latitude ? parseFloat(p.latitude) : null,
+        longitude: p.longitude ? parseFloat(p.longitude) : null,
       }).eq("id", p.id);
       if (error) throw error;
     },
@@ -177,12 +181,15 @@ const AdminDashboard = () => {
       const { error } = await supabase.from("products").insert({
         title: p.title, description: p.description, category: p.category,
         location: p.location, user_id: user!.id,
+        image_url: p.image_url || null,
+        latitude: p.latitude ? parseFloat(p.latitude) : null,
+        longitude: p.longitude ? parseFloat(p.longitude) : null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       invalidateAll(); setNewProduct(false);
-      setNewProductData({ title: "", description: "", category: "other", location: "" });
+      setNewProductData({ title: "", description: "", category: "other", location: "", image_url: "", latitude: "", longitude: "" });
       toast({ title: t("admin.productCreated") });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -202,6 +209,9 @@ const AdminDashboard = () => {
         display_name: p.display_name, username: p.username,
         bio: p.bio, location: p.location, phone: p.phone,
         rating: p.rating, total_exchanges: p.total_exchanges,
+        avatar_url: p.avatar_url || null,
+        latitude: p.latitude ? parseFloat(p.latitude) : null,
+        longitude: p.longitude ? parseFloat(p.longitude) : null,
       }).eq("id", p.id);
       if (error) throw error;
     },
@@ -617,15 +627,18 @@ const AdminDashboard = () => {
                       </td>
                       <td className="p-4 text-muted-foreground hidden md:table-cell">{new Date(r.created_at).toLocaleDateString()}</td>
                       <td className="p-4 text-right space-x-1">
+                        <button onClick={() => setEditRequest({ ...r })} className="p-2 hover:text-primary transition-colors inline-block">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
                         {r.status === "pending" && (
                           <button onClick={() => updateRequestMutation.mutate({ id: r.id, updates: { status: "active" } })}
-                            className="p-2 hover:text-green-400 transition-colors inline-block" title="Activate">
+                            className="p-2 hover:text-emerald-400 transition-colors inline-block" title="Activate">
                             <Play className="w-4 h-4" />
                           </button>
                         )}
                         {r.status === "active" && (
                           <button onClick={() => updateRequestMutation.mutate({ id: r.id, updates: { status: "pending" } })}
-                            className="p-2 hover:text-yellow-400 transition-colors inline-block" title="Pause">
+                            className="p-2 hover:text-amber-400 transition-colors inline-block" title="Pause">
                             <Pause className="w-4 h-4" />
                           </button>
                         )}
@@ -656,6 +669,11 @@ const AdminDashboard = () => {
             <InputField label={t("admin.description")} value={editProduct.description || ""} onChange={(v: string) => setEditProduct({ ...editProduct, description: v })} rows={3} />
             <SelectField label={t("admin.category")} value={editProduct.category} onChange={(v) => setEditProduct({ ...editProduct, category: v })} options={catOptions} />
             <InputField label={t("admin.location")} value={editProduct.location || ""} onChange={(v: string) => setEditProduct({ ...editProduct, location: v })} />
+            <InputField label={t("admin.imageUrl")} value={editProduct.image_url || ""} onChange={(v: string) => setEditProduct({ ...editProduct, image_url: v })} placeholder="https://..." />
+            <div className="grid grid-cols-2 gap-4">
+              <InputField label={t("admin.latitude")} type="number" value={editProduct.latitude || ""} onChange={(v: string) => setEditProduct({ ...editProduct, latitude: v })} />
+              <InputField label={t("admin.longitude")} type="number" value={editProduct.longitude || ""} onChange={(v: string) => setEditProduct({ ...editProduct, longitude: v })} />
+            </div>
             <div className="flex items-center gap-3">
               <label className="text-sm font-medium text-muted-foreground">{t("admin.available")}</label>
               <button onClick={() => setEditProduct({ ...editProduct, is_available: !editProduct.is_available })}
@@ -679,6 +697,11 @@ const AdminDashboard = () => {
           <InputField label={t("admin.description")} value={newProductData.description} onChange={(v: string) => setNewProductData({ ...newProductData, description: v })} rows={3} />
           <SelectField label={t("admin.category")} value={newProductData.category} onChange={(v) => setNewProductData({ ...newProductData, category: v as ProductCategory })} options={catOptions} />
           <InputField label={t("admin.location")} value={newProductData.location} onChange={(v: string) => setNewProductData({ ...newProductData, location: v })} />
+          <InputField label={t("admin.imageUrl")} value={newProductData.image_url} onChange={(v: string) => setNewProductData({ ...newProductData, image_url: v })} placeholder="https://..." />
+          <div className="grid grid-cols-2 gap-4">
+            <InputField label={t("admin.latitude")} type="number" value={newProductData.latitude} onChange={(v: string) => setNewProductData({ ...newProductData, latitude: v })} />
+            <InputField label={t("admin.longitude")} type="number" value={newProductData.longitude} onChange={(v: string) => setNewProductData({ ...newProductData, longitude: v })} />
+          </div>
           <button onClick={() => createProductMutation.mutate(newProductData)}
             disabled={!newProductData.title || createProductMutation.isPending}
             className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
@@ -693,6 +716,7 @@ const AdminDashboard = () => {
           <div className="space-y-4">
             <InputField label={t("admin.username")} value={editProfile.username} onChange={(v: string) => setEditProfile({ ...editProfile, username: v })} />
             <InputField label={t("admin.displayName")} value={editProfile.display_name || ""} onChange={(v: string) => setEditProfile({ ...editProfile, display_name: v })} />
+            <InputField label={t("admin.avatarUrl")} value={editProfile.avatar_url || ""} onChange={(v: string) => setEditProfile({ ...editProfile, avatar_url: v })} placeholder="https://..." />
             <InputField label={t("admin.bio")} value={editProfile.bio || ""} onChange={(v: string) => setEditProfile({ ...editProfile, bio: v })} rows={3} />
             <InputField label={t("admin.location")} value={editProfile.location || ""} onChange={(v: string) => setEditProfile({ ...editProfile, location: v })} />
             <InputField label={t("admin.phone")} value={editProfile.phone || ""} onChange={(v: string) => setEditProfile({ ...editProfile, phone: v })} />
@@ -700,8 +724,50 @@ const AdminDashboard = () => {
               <InputField label={t("admin.rating")} type="number" value={editProfile.rating || 0} onChange={(v: string) => setEditProfile({ ...editProfile, rating: parseFloat(v) || 0 })} />
               <InputField label={t("admin.exchanges")} type="number" value={editProfile.total_exchanges || 0} onChange={(v: string) => setEditProfile({ ...editProfile, total_exchanges: parseInt(v) || 0 })} />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <InputField label={t("admin.latitude")} type="number" value={editProfile.latitude || ""} onChange={(v: string) => setEditProfile({ ...editProfile, latitude: v })} />
+              <InputField label={t("admin.longitude")} type="number" value={editProfile.longitude || ""} onChange={(v: string) => setEditProfile({ ...editProfile, longitude: v })} />
+            </div>
             <button onClick={() => updateProfileMutation.mutate(editProfile)}
               disabled={updateProfileMutation.isPending}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {t("admin.save")}
+            </button>
+          </div>
+        )}
+      </Modal>
+
+      {/* Edit Request Modal */}
+      <Modal open={!!editRequest} onClose={() => setEditRequest(null)} title={t("admin.editRequest")}>
+        {editRequest && (
+          <div className="space-y-4">
+            <InputField label={t("exchange.requestTitle")} value={editRequest.title} onChange={(v: string) => setEditRequest({ ...editRequest, title: v })} />
+            <InputField label={t("admin.description")} value={editRequest.description || ""} onChange={(v: string) => setEditRequest({ ...editRequest, description: v })} rows={2} />
+            <InputField label={t("exchange.whatYouOffer")} value={editRequest.offer_description} onChange={(v: string) => setEditRequest({ ...editRequest, offer_description: v })} rows={2} />
+            <InputField label={t("exchange.whatYouWant")} value={editRequest.request_description} onChange={(v: string) => setEditRequest({ ...editRequest, request_description: v })} rows={2} />
+            <InputField label={t("admin.imageUrl")} value={editRequest.image_url || ""} onChange={(v: string) => setEditRequest({ ...editRequest, image_url: v })} placeholder="https://..." />
+            <InputField label={t("admin.location")} value={editRequest.location || ""} onChange={(v: string) => setEditRequest({ ...editRequest, location: v })} />
+            <div className="grid grid-cols-2 gap-4">
+              <InputField label={t("admin.latitude")} type="number" value={editRequest.latitude || ""} onChange={(v: string) => setEditRequest({ ...editRequest, latitude: v })} />
+              <InputField label={t("admin.longitude")} type="number" value={editRequest.longitude || ""} onChange={(v: string) => setEditRequest({ ...editRequest, longitude: v })} />
+            </div>
+            <SelectField label={t("admin.status")} value={editRequest.status} onChange={(v) => setEditRequest({ ...editRequest, status: v })}
+              options={["pending", "active", "matched", "completed", "cancelled", "coming_soon"].map(s => ({ value: s, label: t(`exchange.status.${s}`) }))} />
+            <InputField label={t("admin.adminNotes")} value={editRequest.admin_notes || ""} onChange={(v: string) => setEditRequest({ ...editRequest, admin_notes: v })} rows={2} />
+            <InputField label={t("admin.matchUser")} value={editRequest.matched_user_id || ""} onChange={(v: string) => setEditRequest({ ...editRequest, matched_user_id: v || null })} placeholder="User ID" />
+            <button onClick={() => {
+              const updates: any = {
+                title: editRequest.title, description: editRequest.description,
+                offer_description: editRequest.offer_description, request_description: editRequest.request_description,
+                location: editRequest.location, status: editRequest.status,
+                admin_notes: editRequest.admin_notes, matched_user_id: editRequest.matched_user_id,
+                image_url: editRequest.image_url || null,
+                latitude: editRequest.latitude ? parseFloat(editRequest.latitude) : null,
+                longitude: editRequest.longitude ? parseFloat(editRequest.longitude) : null,
+              };
+              updateRequestMutation.mutate({ id: editRequest.id, updates });
+              setEditRequest(null);
+            }}
               className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
               {t("admin.save")}
             </button>

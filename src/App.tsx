@@ -21,7 +21,9 @@ import ProductDetailPage from "./pages/ProductDetailPage";
 import CreateProductPage from "./pages/CreateProductPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import CommunityPage from "./pages/CommunityPage";
+import CommunityDetailPage from "./pages/CommunityDetailPage";
 import ExchangeRequestsPage from "./pages/ExchangeRequestsPage";
+import MapPage from "./pages/MapPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,7 +53,9 @@ const App = () => (
                 <Route path="/usuarios/:userId" element={<UserDetailPage />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/community" element={<CommunityPage />} />
+                <Route path="/community/:slug" element={<CommunityDetailPage />} />
                 <Route path="/exchange" element={<ExchangeRequestsPage />} />
+                <Route path="/map" element={<MapPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <Footer />
