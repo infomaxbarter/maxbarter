@@ -14,6 +14,112 @@ export type Database = {
   }
   public: {
     Tables: {
+      exchange_proposals: {
+        Row: {
+          contact_info: string | null
+          created_at: string
+          id: string
+          is_anonymous: boolean
+          message: string
+          request_id: string
+          status: Database["public"]["Enums"]["request_status"]
+          user_id: string | null
+        }
+        Insert: {
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          message: string
+          request_id: string
+          status?: Database["public"]["Enums"]["request_status"]
+          user_id?: string | null
+        }
+        Update: {
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          message?: string
+          request_id?: string
+          status?: Database["public"]["Enums"]["request_status"]
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exchange_proposals_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "exchange_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exchange_requests: {
+        Row: {
+          admin_notes: string | null
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_anonymous: boolean
+          location: string | null
+          matched_product_id: string | null
+          matched_user_id: string | null
+          offer_description: string
+          request_description: string
+          status: Database["public"]["Enums"]["request_status"]
+          title: string
+          type: Database["public"]["Enums"]["request_type"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_anonymous?: boolean
+          location?: string | null
+          matched_product_id?: string | null
+          matched_user_id?: string | null
+          offer_description: string
+          request_description: string
+          status?: Database["public"]["Enums"]["request_status"]
+          title: string
+          type?: Database["public"]["Enums"]["request_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_anonymous?: boolean
+          location?: string | null
+          matched_product_id?: string | null
+          matched_user_id?: string | null
+          offer_description?: string
+          request_description?: string
+          status?: Database["public"]["Enums"]["request_status"]
+          title?: string
+          type?: Database["public"]["Enums"]["request_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exchange_requests_matched_product_id_fkey"
+            columns: ["matched_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offers: {
         Row: {
           created_at: string
@@ -102,7 +208,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -199,6 +313,14 @@ export type Database = {
         | "gaming"
         | "home"
         | "other"
+      request_status:
+        | "pending"
+        | "active"
+        | "matched"
+        | "completed"
+        | "cancelled"
+        | "coming_soon"
+      request_type: "product" | "service"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -338,6 +460,15 @@ export const Constants = {
         "home",
         "other",
       ],
+      request_status: [
+        "pending",
+        "active",
+        "matched",
+        "completed",
+        "cancelled",
+        "coming_soon",
+      ],
+      request_type: ["product", "service"],
     },
   },
 } as const
