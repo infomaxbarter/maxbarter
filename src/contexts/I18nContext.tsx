@@ -22,6 +22,7 @@ const translations: Record<Language, Record<string, string>> = {
     "login.button": "GİRİŞ YAP",
     "login.noAccount": "Hesabın yok mu?",
     "login.register": "Kayıt Ol",
+    "login.browseGuest": "Giriş yapmadan göz at →",
 
     // Register
     "register.title": "KAYIT OL",
@@ -308,6 +309,7 @@ const translations: Record<Language, Record<string, string>> = {
     "login.button": "LOGIN",
     "login.noAccount": "Don't have an account?",
     "login.register": "Register",
+    "login.browseGuest": "Browse without login →",
 
     "register.title": "REGISTER",
     "register.username": "Username",
@@ -579,6 +581,7 @@ const translations: Record<Language, Record<string, string>> = {
     "login.button": "INICIAR SESIÓN",
     "login.noAccount": "¿No tienes cuenta?",
     "login.register": "Regístrate",
+    "login.browseGuest": "Explorar sin cuenta →",
 
     "register.title": "REGISTRO",
     "register.username": "Usuario",

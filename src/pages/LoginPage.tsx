@@ -89,6 +89,11 @@ const LoginPage = () => {
                 <Link to="/register" className="text-primary hover:underline font-medium">{t("login.register")}</Link>
               </p>
             </form>
+            <div className="mt-4 pt-4 border-t border-border">
+              <Button variant="outline" className="w-full gap-2 text-muted-foreground hover:text-foreground" onClick={() => navigate("/home")}>
+                {t("login.browseGuest")}
+              </Button>
+            </div>
           </div>
         </motion.div>
       </div>
