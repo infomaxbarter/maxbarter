@@ -45,7 +45,7 @@ const MapPage = () => {
       ? products.map((p: any) => ({
           lat: p.latitude, lng: p.longitude, title: p.title,
           description: p.description?.slice(0, 80), type: "product" as const,
-          link: `/productos/${makeProductSlug(p.title, p.id)}`, imageUrl: p.image_url,
+          link: `/products/${makeProductSlug(p.title, p.id)}`, imageUrl: p.image_url,
         }))
       : []),
     ...(filter === "all" || filter === "services"
@@ -58,7 +58,7 @@ const MapPage = () => {
     ...(filter === "all" || filter === "users"
       ? profiles.map((p: any) => ({
           lat: p.latitude, lng: p.longitude, title: p.display_name || p.username,
-          type: "user" as const, link: `/usuarios/${p.username}`, imageUrl: p.avatar_url,
+          type: "user" as const, link: `/users/${p.username}`, imageUrl: p.avatar_url,
         }))
       : []),
   ];

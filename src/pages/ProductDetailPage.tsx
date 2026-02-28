@@ -97,7 +97,7 @@ const ProductDetailPage = () => {
               </div>
 
               {profile && (
-                <Link to={`/usuarios/${profile.username}`} className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow-border transition-all">
+                <Link to={`/users/${profile.username}`} className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow-border transition-all">
                   <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
                     {profile.avatar_url ? (
                       <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
