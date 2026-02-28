@@ -29,7 +29,8 @@ const Navbar = () => {
     enabled: !!user,
   });
 
-  if (location.pathname === "/" || location.pathname === "/register") return null;
+  const isAuthPage = location.pathname === "/" || location.pathname === "/register";
+  if (isAuthPage) return null;
 
   const navItems = [
     { path: "/home", label: t("nav.home"), icon: Home },
@@ -109,19 +110,31 @@ const Navbar = () => {
             )}
           </div>
 
-          <Link
-            to="/perfil"
-            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <User className="w-4 h-4" />
-            {t("nav.profile")}
-          </Link>
-          <button
-            onClick={async () => { await signOut(); navigate("/"); }}
-            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-destructive hover:bg-secondary transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          {user ? (
+            <>
+              <Link
+                to="/perfil"
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <User className="w-4 h-4" />
+                {t("nav.profile")}
+              </Link>
+              <button
+                onClick={async () => { await signOut(); navigate("/"); }}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-destructive hover:bg-secondary transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/"
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <User className="w-4 h-4" />
+              {t("login.button")}
+            </Link>
+          )}
         </div>
 
         <div className="flex md:hidden items-center gap-1">
