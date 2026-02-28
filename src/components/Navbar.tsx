@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { Menu, X, Home, ShoppingBag, Users, BarChart3, User, LogOut, Info, Sun, Moon, Globe, Shield, Heart } from "lucide-react";
+import { Menu, X, Home, ShoppingBag, Users, BarChart3, User, LogOut, Info, Sun, Moon, Globe, Shield, Heart, ArrowLeftRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,6 +35,7 @@ const Navbar = () => {
     { path: "/home", label: t("nav.home"), icon: Home },
     { path: "/productos", label: t("nav.products"), icon: ShoppingBag },
     { path: "/ofertas", label: t("nav.offers"), icon: ShoppingBag },
+    { path: "/exchange", label: t("nav.exchange"), icon: ArrowLeftRight },
     { path: "/usuarios", label: t("nav.users"), icon: Users },
     { path: "/stats", label: t("nav.stats"), icon: BarChart3 },
     { path: "/about", label: t("nav.about"), icon: Info },

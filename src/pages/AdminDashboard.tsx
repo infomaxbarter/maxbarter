@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Users, ShoppingBag, Handshake, AlertTriangle,
   Crown, UserCheck, User, Trash2, Eye, Search, ChevronDown,
-  Plus, X, Edit2, Check, Ban, RotateCcw
+  Plus, X, Edit2, Check, Ban, RotateCcw, ArrowLeftRight, Clock, Play, Pause
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, Navigate } from "react-router-dom";
@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 type AppRole = "admin" | "moderator" | "user";
 type OfferStatus = "pending" | "accepted" | "rejected" | "cancelled";
 type ProductCategory = "electronics" | "music" | "sports" | "books" | "clothing" | "gaming" | "home" | "other";
+type RequestStatus = "pending" | "active" | "matched" | "completed" | "cancelled" | "coming_soon";
 
 // ─── Modal wrapper ─────────────────────────────
 const Modal = ({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) => (
@@ -70,7 +71,7 @@ const AdminDashboard = () => {
   const { t } = useI18n();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "products" | "offers">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "products" | "offers" | "requests">("overview");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Modal states
@@ -126,12 +127,23 @@ const AdminDashboard = () => {
     enabled: isAdmin === true,
   });
 
+  // Exchange requests
+  const { data: exchangeRequests = [] } = useQuery({
+    queryKey: ["admin-exchange-requests"],
+    queryFn: async () => {
+      const { data } = await supabase.from("exchange_requests").select("*").order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: isAdmin === true,
+  });
+
   // ─── Mutations ─────────────────────────────
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
     queryClient.invalidateQueries({ queryKey: ["admin-products"] });
     queryClient.invalidateQueries({ queryKey: ["admin-offers"] });
     queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-exchange-requests"] });
   };
 
   const roleMutation = useMutation({
@@ -214,6 +226,23 @@ const AdminDashboard = () => {
     onSuccess: () => { invalidateAll(); toast({ title: t("admin.offerDeleted") }); },
   });
 
+  const updateRequestMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      const { error } = await supabase.from("exchange_requests").update(updates).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); toast({ title: t("admin.requestUpdated") }); },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteRequestMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("exchange_requests").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); toast({ title: t("admin.requestDeleted") }); },
+  });
+
   if (checkingAdmin) {
     return <div className="min-h-screen pt-20 flex items-center justify-center">
       <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
@@ -250,6 +279,8 @@ const AdminDashboard = () => {
     { label: t("admin.totalProducts"), value: products.length, icon: ShoppingBag, color: "text-green-400" },
     { label: t("admin.totalOffers"), value: offers.length, icon: Handshake, color: "text-primary" },
     { label: t("admin.pendingOffers"), value: offers.filter((o: any) => o.status === "pending").length, icon: AlertTriangle, color: "text-yellow-400" },
+    { label: t("admin.totalRequests"), value: exchangeRequests.length, icon: ArrowLeftRight, color: "text-purple-400" },
+    { label: t("admin.pendingRequests"), value: exchangeRequests.filter((r: any) => r.status === "pending").length, icon: Clock, color: "text-pink-400" },
   ];
 
   const tabs = [
@@ -257,6 +288,7 @@ const AdminDashboard = () => {
     { key: "users" as const, label: t("admin.users") },
     { key: "products" as const, label: t("admin.products") },
     { key: "offers" as const, label: t("admin.offers") },
+    { key: "requests" as const, label: t("admin.requests") },
   ];
 
   const getProfileName = (userId: string) => {
@@ -537,6 +569,74 @@ const AdminDashboard = () => {
                     </tr>
                   ))}
                   {offers.length === 0 && (
+                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("admin.noData")}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ REQUESTS ═══ */}
+        {activeTab === "requests" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{exchangeRequests.length} {t("admin.requests").toLowerCase()}</p>
+            <div className="glass-card rounded-xl overflow-hidden overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left p-4 text-muted-foreground font-medium">{t("exchange.requestTitle")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium">{t("exchange.type")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.user")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium">{t("admin.status")}</th>
+                    <th className="text-left p-4 text-muted-foreground font-medium hidden md:table-cell">{t("admin.date")}</th>
+                    <th className="text-right p-4 text-muted-foreground font-medium">{t("admin.actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exchangeRequests.map((r: any) => (
+                    <tr key={r.id} className="border-b border-border/20 hover:bg-secondary/30 transition-colors">
+                      <td className="p-4">
+                        <div>
+                          <p className="font-medium">{r.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{r.offer_description?.slice(0, 40)}...</p>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <Badge variant="secondary">{r.type === "product" ? t("exchange.product") : t("exchange.service")}</Badge>
+                      </td>
+                      <td className="p-4 text-muted-foreground">{r.is_anonymous ? t("exchange.anonymous") : getProfileName(r.user_id)}</td>
+                      <td className="p-4">
+                        <select value={r.status}
+                          onChange={(e) => updateRequestMutation.mutate({ id: r.id, updates: { status: e.target.value } })}
+                          className="px-2 py-1 rounded border border-border/50 bg-secondary/30 text-xs text-foreground">
+                          {(["pending", "active", "matched", "completed", "cancelled", "coming_soon"] as RequestStatus[]).map((s) => (
+                            <option key={s} value={s}>{t(`exchange.status.${s}`)}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-4 text-muted-foreground hidden md:table-cell">{new Date(r.created_at).toLocaleDateString()}</td>
+                      <td className="p-4 text-right space-x-1">
+                        {r.status === "pending" && (
+                          <button onClick={() => updateRequestMutation.mutate({ id: r.id, updates: { status: "active" } })}
+                            className="p-2 hover:text-green-400 transition-colors inline-block" title="Activate">
+                            <Play className="w-4 h-4" />
+                          </button>
+                        )}
+                        {r.status === "active" && (
+                          <button onClick={() => updateRequestMutation.mutate({ id: r.id, updates: { status: "pending" } })}
+                            className="p-2 hover:text-yellow-400 transition-colors inline-block" title="Pause">
+                            <Pause className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button onClick={() => { if (confirm(t("admin.confirmDelete"))) deleteRequestMutation.mutate(r.id); }}
+                          className="p-2 hover:text-destructive transition-colors inline-block">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {exchangeRequests.length === 0 && (
                     <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("admin.noData")}</td></tr>
                   )}
                 </tbody>
