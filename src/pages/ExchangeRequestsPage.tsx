@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import LocationPicker from "@/components/LocationPicker";
+import { seedExchangeRequests, seedProposals, withSeedFallback } from "@/lib/seedData";
 
 type RequestType = "product" | "service";
 type RequestStatus = "pending" | "active" | "matched" | "completed" | "cancelled" | "coming_soon";
@@ -34,11 +36,12 @@ const ExchangeRequestsPage = () => {
   const [form, setForm] = useState({
     title: "", description: "", type: "product" as RequestType, category: "other",
     offer_description: "", request_description: "", location: "", is_anonymous: false,
+    latitude: null as number | null, longitude: null as number | null,
   });
   const [proposalMsg, setProposalMsg] = useState("");
   const [proposalAnon, setProposalAnon] = useState(false);
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: dbRequests = [], isLoading } = useQuery({
     queryKey: ["exchange-requests", filter, typeFilter],
     queryFn: async () => {
       let query = supabase.from("exchange_requests").select("*").order("created_at", { ascending: false });
@@ -50,13 +53,17 @@ const ExchangeRequestsPage = () => {
     },
   });
 
-  const { data: proposals = [] } = useQuery({
+  const requests = withSeedFallback(dbRequests, seedExchangeRequests as any);
+
+  const { data: dbProposalsData = [] } = useQuery({
     queryKey: ["exchange-proposals"],
     queryFn: async () => {
       const { data } = await supabase.from("exchange_proposals").select("*").order("created_at", { ascending: false });
       return data || [];
     },
   });
+
+  const proposals = withSeedFallback(dbProposalsData, seedProposals as any);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["profiles-for-requests"],
@@ -77,13 +84,15 @@ const ExchangeRequestsPage = () => {
       const { error } = await supabase.from("exchange_requests").insert({
         ...form,
         user_id: form.is_anonymous ? null : user?.id,
+        latitude: form.latitude,
+        longitude: form.longitude,
       } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["exchange-requests"] });
       setShowCreate(false);
-      setForm({ title: "", description: "", type: "product", category: "other", offer_description: "", request_description: "", location: "", is_anonymous: false });
+      setForm({ title: "", description: "", type: "product", category: "other", offer_description: "", request_description: "", location: "", is_anonymous: false, latitude: null, longitude: null });
       toast({ title: t("exchange.created") });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -268,6 +277,10 @@ const ExchangeRequestsPage = () => {
                 <InputField label={t("exchange.whatYouOffer")} value={form.offer_description} onChange={(v: string) => setForm({ ...form, offer_description: v })} rows={2} placeholder={t("exchange.offerPlaceholder")} />
                 <InputField label={t("exchange.whatYouWant")} value={form.request_description} onChange={(v: string) => setForm({ ...form, request_description: v })} rows={2} placeholder={t("exchange.requestPlaceholder")} />
                 <InputField label={t("admin.location")} value={form.location} onChange={(v: string) => setForm({ ...form, location: v })} />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-muted-foreground">{t("admin.location")} (Map)</label>
+                  <LocationPicker latitude={form.latitude} longitude={form.longitude} onChange={(lat, lng) => setForm({ ...form, latitude: lat, longitude: lng })} height="200px" />
+                </div>
 
                 <label className="flex items-center gap-3 cursor-pointer">
                   <div onClick={() => setForm({ ...form, is_anonymous: !form.is_anonymous })}

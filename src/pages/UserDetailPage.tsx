@@ -103,7 +103,7 @@ const UserDetailPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {products.map((product: any, i: number) => (
                 <motion.div key={product.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                  <Link to={`/productos/${makeProductSlug(product.title, product.id)}`}>
+                  <Link to={`/products/${makeProductSlug(product.title, product.id)}`}>
                     <div className="glass-card rounded-lg overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform">
                       <div className="h-40 overflow-hidden bg-muted">
                         {product.image_url ? (

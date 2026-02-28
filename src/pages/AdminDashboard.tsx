@@ -273,8 +273,10 @@ const AdminDashboard = () => {
   });
 
   const updateOfferMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: OfferStatus }) => {
-      const { error } = await supabase.from("offers").update({ status }).eq("id", id);
+    mutationFn: async ({ id, status, message }: { id: string; status: OfferStatus; message?: string }) => {
+      const updates: any = { status };
+      if (message !== undefined) updates.message = message;
+      const { error } = await supabase.from("offers").update(updates).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); setEditOffer(null); toast({ title: t("admin.offerUpdated") }); },
@@ -652,6 +654,7 @@ const AdminDashboard = () => {
                       <td className="p-4 text-right space-x-1">
                         {!o.id.startsWith("seed-") && (
                           <>
+                            <button onClick={() => setEditOffer({ ...o })} className="p-2 hover:text-primary transition-colors inline-block"><Edit2 className="w-4 h-4" /></button>
                             {o.status === "pending" && (
                               <>
                                 <button onClick={() => updateOfferMutation.mutate({ id: o.id, status: "accepted" })} className="p-2 hover:text-emerald-400 transition-colors inline-block"><Check className="w-4 h-4" /></button>
@@ -977,6 +980,35 @@ const AdminDashboard = () => {
                 updates: { message: editProposal.message, status: editProposal.status, contact_info: editProposal.contact_info || null }
               });
             }}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {t("admin.save")}
+            </button>
+          </div>
+        )}
+      </Modal>
+
+      {/* Edit Offer Modal */}
+      <Modal open={!!editOffer} onClose={() => setEditOffer(null)} title={t("admin.editOffer") || "Edit Offer"}>
+        {editOffer && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">{t("admin.from")}</p>
+                <p className="text-sm font-medium">{getProfileName(editOffer.from_user_id)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{getProductTitle(editOffer.from_product_id)}</p>
+              </div>
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">{t("admin.to")}</p>
+                <p className="text-sm font-medium">{getProfileName(editOffer.to_user_id)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{getProductTitle(editOffer.to_product_id)}</p>
+              </div>
+            </div>
+            <InputField label={t("admin.message")} value={editOffer.message || ""} onChange={(v: string) => setEditOffer({ ...editOffer, message: v })} rows={3} />
+            <SelectField label={t("admin.status")} value={editOffer.status} onChange={(v) => setEditOffer({ ...editOffer, status: v })}
+              options={["pending", "accepted", "rejected", "cancelled"].map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))} />
+            <p className="text-xs text-muted-foreground">{t("admin.date")}: {new Date(editOffer.created_at).toLocaleString()}</p>
+            <button onClick={() => updateOfferMutation.mutate({ id: editOffer.id, status: editOffer.status as OfferStatus, message: editOffer.message })}
+              disabled={updateOfferMutation.isPending}
               className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
               {t("admin.save")}
             </button>

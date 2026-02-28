@@ -10,6 +10,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import LocationPicker from "@/components/LocationPicker";
 
 const categories = ["electronics", "music", "sports", "books", "clothing", "gaming", "home", "other"] as const;
 
@@ -30,6 +31,8 @@ const CreateProductPage = () => {
   const [category, setCategory] = useState<typeof categories[number]>("other");
   const [location, setLocation] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!user) {
@@ -59,6 +62,8 @@ const CreateProductPage = () => {
       category,
       location,
       image_url: imageUrl,
+      latitude,
+      longitude,
     });
 
     setLoading(false);
@@ -103,6 +108,10 @@ const CreateProductPage = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">Location</label>
                 <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, Country" className="bg-secondary border-border" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Location (Map)</label>
+                <LocationPicker latitude={latitude} longitude={longitude} onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">Image</label>
