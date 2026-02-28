@@ -62,8 +62,11 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          image_url: string | null
           is_anonymous: boolean
+          latitude: number | null
           location: string | null
+          longitude: number | null
           matched_product_id: string | null
           matched_user_id: string | null
           offer_description: string
@@ -80,8 +83,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           is_anonymous?: boolean
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           matched_product_id?: string | null
           matched_user_id?: string | null
           offer_description: string
@@ -98,8 +104,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           is_anonymous?: boolean
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           matched_product_id?: string | null
           matched_user_id?: string | null
           offer_description?: string
@@ -179,7 +188,9 @@ export type Database = {
           id: string
           image_url: string | null
           is_available: boolean | null
+          latitude: number | null
           location: string | null
+          longitude: number | null
           title: string
           updated_at: string
           user_id: string
@@ -191,7 +202,9 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean | null
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           title: string
           updated_at?: string
           user_id: string
@@ -203,7 +216,9 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean | null
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -225,7 +240,9 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          latitude: number | null
           location: string | null
+          longitude: number | null
           phone: string | null
           rating: number | null
           total_exchanges: number | null
@@ -239,7 +256,9 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           phone?: string | null
           rating?: number | null
           total_exchanges?: number | null
@@ -253,7 +272,9 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           phone?: string | null
           rating?: number | null
           total_exchanges?: number | null
