@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { Menu, X, Home, ShoppingBag, Users, BarChart3, User, LogOut, Info, Sun, Moon, Globe } from "lucide-react";
+import { Menu, X, Home, ShoppingBag, Users, BarChart3, User, LogOut, Info, Sun, Moon, Globe, Shield, Heart } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n, Language } from "@/contexts/I18nContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -16,7 +18,16 @@ const Navbar = () => {
   const [langOpen, setLangOpen] = useState(false);
   const { t, language, setLanguage } = useI18n();
   const { theme, toggleTheme } = useTheme();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+
+  const { data: isAdmin } = useQuery({
+    queryKey: ["isAdmin", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("has_role", { _user_id: user!.id, _role: "admin" as any });
+      return data as boolean;
+    },
+    enabled: !!user,
+  });
 
   if (location.pathname === "/" || location.pathname === "/register") return null;
 
@@ -27,6 +38,8 @@ const Navbar = () => {
     { path: "/usuarios", label: t("nav.users"), icon: Users },
     { path: "/stats", label: t("nav.stats"), icon: BarChart3 },
     { path: "/about", label: t("nav.about"), icon: Info },
+    { path: "/community", label: t("nav.community"), icon: Heart },
+    ...(isAdmin ? [{ path: "/admin", label: t("nav.admin"), icon: Shield }] : []),
   ];
 
   return (
