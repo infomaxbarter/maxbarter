@@ -1,0 +1,127 @@
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { User, Lock, Eye, EyeOff } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import barterExchange from "@/assets/barter-exchange.png";
+
+const LoginPage = () => {
+  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    navigate("/home");
+  };
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+      style={{
+        backgroundImage: "url(/images/hero-bg.jpg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-background/60" />
+
+      <div className="relative z-10 flex flex-col lg:flex-row items-center gap-12 lg:gap-24 max-w-6xl w-full">
+        {/* Left: Welcome text */}
+        <motion.div
+          initial={{ opacity: 0, x: -60 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="text-center lg:text-left"
+        >
+          <h1 className="font-display font-bold text-6xl sm:text-7xl lg:text-8xl text-primary leading-none">
+            WELCOME
+          </h1>
+          <p className="text-xl sm:text-2xl text-foreground/80 mt-3 font-body">
+            to the <span className="font-bold text-foreground">BEST</span> barter page
+          </p>
+          <motion.img
+            src={barterExchange}
+            alt="Barter exchange"
+            className="w-64 lg:w-80 mx-auto lg:mx-0 mt-8 drop-shadow-2xl"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          />
+        </motion.div>
+
+        {/* Right: Login form */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="w-full max-w-md"
+        >
+          <div className="glass-card rounded-2xl p-8 glow-border">
+            <div className="flex items-center gap-3 justify-center mb-8">
+              <div className="h-px flex-1 bg-border" />
+              <h2 className="font-display text-2xl font-bold text-foreground tracking-wider">LOGIN</h2>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Usuario</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Usuario"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="pl-10 bg-secondary border-border focus:border-primary focus:ring-primary/20"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Contraseña"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10 bg-secondary border-border focus:border-primary focus:ring-primary/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-display font-bold text-lg tracking-wider h-12"
+              >
+                LOGIN
+              </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                ¿No tienes cuenta?{" "}
+                <Link to="/register" className="text-primary hover:underline font-medium">
+                  Regístrate
+                </Link>
+              </p>
+            </form>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default LoginPage;
