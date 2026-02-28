@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Users as UsersIcon, Plus } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/contexts/I18nContext";
@@ -8,18 +8,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import type { Tables } from "@/integrations/supabase/types";
+import { makeProductSlug } from "@/lib/utils";
+import { seedProducts, withSeedFallback } from "@/lib/seedData";
 
 const categoryKeys: Record<string, string> = {
-  all: "home.all",
-  electronics: "cat.electronics",
-  music: "cat.music",
-  sports: "cat.sports",
-  books: "cat.books",
-  clothing: "cat.clothing",
-  gaming: "cat.gaming",
-  home: "cat.home",
-  other: "other",
+  all: "home.all", electronics: "cat.electronics", music: "cat.music", sports: "cat.sports",
+  books: "cat.books", clothing: "cat.clothing", gaming: "cat.gaming", home: "cat.home", other: "other",
 };
 
 const HomePage = () => {
@@ -28,7 +22,7 @@ const HomePage = () => {
   const { t } = useI18n();
   const { user } = useAuth();
 
-  const { data: products = [], isLoading } = useQuery({
+  const { data: dbProducts = [], isLoading } = useQuery({
     queryKey: ["products", selectedCategory, searchTerm],
     queryFn: async () => {
       let query = supabase
@@ -48,6 +42,15 @@ const HomePage = () => {
       if (error) throw error;
       return data;
     },
+  });
+
+  const products = withSeedFallback(dbProducts, seedProducts as any);
+
+  // Client-side filter for seed data
+  const filteredProducts = dbProducts.length > 0 ? products : products.filter((p: any) => {
+    if (selectedCategory !== "all" && p.category !== selectedCategory) return false;
+    if (searchTerm && !p.title.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
   });
 
   return (
@@ -82,9 +85,9 @@ const HomePage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {products.map((product: any, i: number) => (
+            {filteredProducts.map((product: any, i: number) => (
               <motion.div key={product.id} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03, duration: 0.4 }}>
-                <Link to={`/productos/${product.id}`}>
+                <Link to={`/productos/${makeProductSlug(product.title, product.id)}`}>
                   <div className="glass-card rounded-lg overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform">
                     <div className="relative h-48 overflow-hidden bg-muted">
                       {product.image_url ? (
@@ -97,6 +100,19 @@ const HomePage = () => {
                           {t(categoryKeys[product.category] || "other")}
                         </span>
                       </div>
+                      {product.status && product.status !== "active" && (
+                        <div className="absolute top-3 right-3">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            product.status === "demo" ? "bg-indigo-500/90 text-white" :
+                            product.status === "passive" ? "bg-amber-500/90 text-white" :
+                            product.status === "coming_soon" ? "bg-purple-500/90 text-white" :
+                            product.status === "offline" ? "bg-muted text-muted-foreground" :
+                            "bg-secondary text-foreground"
+                          }`}>
+                            {product.status === "demo" ? "Demo" : product.status === "passive" ? "Pasif" : product.status === "coming_soon" ? "Yakında" : product.status === "offline" ? "Offline" : product.status}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="p-4 space-y-2">
                       <h3 className="font-display text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">{product.title}</h3>
@@ -118,7 +134,7 @@ const HomePage = () => {
           </div>
         )}
 
-        {!isLoading && products.length === 0 && (
+        {!isLoading && filteredProducts.length === 0 && (
           <div className="text-center py-20">
             <p className="text-muted-foreground text-lg">{t("home.noProducts")}</p>
             {user && (

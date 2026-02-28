@@ -6,6 +6,8 @@ import { useI18n } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { extractIdFromSlug, makeProductSlug } from "@/lib/utils";
+import { seedProducts } from "@/lib/seedData";
 
 const categoryLabels: Record<string, string> = {
   electronics: "cat.electronics", music: "cat.music", sports: "cat.sports",
@@ -14,23 +16,34 @@ const categoryLabels: Record<string, string> = {
 };
 
 const ProductDetailPage = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const { t } = useI18n();
   const { user } = useAuth();
 
+  const shortId = slug ? extractIdFromSlug(slug) : "";
+
   const { data: product, isLoading } = useQuery({
-    queryKey: ["product", id],
+    queryKey: ["product", slug],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Try by short ID first (first 8 chars of uuid)
+      const { data: allProducts } = await supabase
         .from("products")
         .select("*, profiles(username, display_name, avatar_url, location, rating)")
-        .eq("id", id!)
-        .single();
-      if (error) throw error;
-      return data;
+        .order("created_at", { ascending: false });
+
+      if (allProducts) {
+        const found = allProducts.find((p: any) => p.id.startsWith(shortId) || p.id === shortId);
+        if (found) return found;
+      }
+
+      // Fallback: try seed data
+      const seedProduct = seedProducts.find(p => p.id.startsWith(shortId) || slug?.includes(p.id.slice(0, 8)));
+      if (seedProduct) return seedProduct;
+
+      return null;
     },
-    enabled: !!id,
+    enabled: !!slug,
   });
 
   if (isLoading) {
@@ -41,7 +54,7 @@ const ProductDetailPage = () => {
     return <div className="min-h-screen pt-20 flex items-center justify-center"><p className="text-muted-foreground">Product not found</p></div>;
   }
 
-  const profile = product.profiles as any;
+  const profile = (product as any).profiles;
   const isOwner = user?.id === product.user_id;
 
   return (
@@ -53,7 +66,6 @@ const ProductDetailPage = () => {
           </button>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Image */}
             <div className="glass-card rounded-xl overflow-hidden">
               {product.image_url ? (
                 <img src={product.image_url} alt={product.title} className="w-full h-80 lg:h-full object-cover" />
@@ -62,7 +74,6 @@ const ProductDetailPage = () => {
               )}
             </div>
 
-            {/* Details */}
             <div className="space-y-6">
               <div>
                 <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-primary/20 text-primary mb-3">
@@ -85,18 +96,22 @@ const ProductDetailPage = () => {
                 </span>
               </div>
 
-              {/* Owner info */}
-              <Link to={`/usuarios/${product.user_id}`} className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow-border transition-all">
-                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="font-display font-bold text-primary text-lg">{profile?.username?.[0] || "?"}</span>
-                </div>
-                <div>
-                  <p className="font-display font-bold text-foreground">{profile?.display_name || profile?.username}</p>
-                  <p className="text-xs text-muted-foreground">{profile?.location || ""} {profile?.rating ? `★ ${profile.rating}` : ""}</p>
-                </div>
-              </Link>
+              {profile && (
+                <Link to={`/usuarios/${profile.username}`} className="glass-card rounded-xl p-4 flex items-center gap-4 hover:glow-border transition-all">
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="font-display font-bold text-primary text-lg">{profile.username?.[0] || "?"}</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-display font-bold text-foreground">{profile.display_name || profile.username}</p>
+                    <p className="text-xs text-muted-foreground">{profile.location || ""} {profile.rating ? `★ ${profile.rating}` : ""}</p>
+                  </div>
+                </Link>
+              )}
 
-              {/* Actions */}
               {!isOwner && user && (
                 <Button className="w-full bg-primary text-primary-foreground font-display font-bold h-12 gap-2">
                   <ArrowLeftRight className="w-5 h-5" /> Propose Exchange
