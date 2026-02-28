@@ -4,10 +4,14 @@ import { motion } from "framer-motion";
 import { User, Lock, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useI18n, Language } from "@/contexts/I18nContext";
 import barterExchange from "@/assets/barter-exchange.png";
+
+const langFlags: Record<Language, string> = { tr: "🇹🇷", en: "🇬🇧", es: "🇪🇸" };
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { t, language, setLanguage } = useI18n();
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -20,17 +24,26 @@ const LoginPage = () => {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
-      style={{
-        backgroundImage: "url(/images/hero-bg.jpg)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+      style={{ backgroundImage: "url(/images/hero-bg.jpg)", backgroundSize: "cover", backgroundPosition: "center" }}
     >
-      {/* Overlay */}
       <div className="absolute inset-0 bg-background/60" />
 
+      {/* Language selector on login */}
+      <div className="absolute top-4 right-4 z-20 flex gap-1">
+        {(Object.keys(langFlags) as Language[]).map((lang) => (
+          <button
+            key={lang}
+            onClick={() => setLanguage(lang)}
+            className={`px-2.5 py-1.5 rounded-md text-sm transition-colors ${
+              language === lang ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground glass-card"
+            }`}
+          >
+            {langFlags[lang]}
+          </button>
+        ))}
+      </div>
+
       <div className="relative z-10 flex flex-col lg:flex-row items-center gap-12 lg:gap-24 max-w-6xl w-full">
-        {/* Left: Welcome text */}
         <motion.div
           initial={{ opacity: 0, x: -60 }}
           animate={{ opacity: 1, x: 0 }}
@@ -38,10 +51,10 @@ const LoginPage = () => {
           className="text-center lg:text-left"
         >
           <h1 className="font-display font-bold text-6xl sm:text-7xl lg:text-8xl text-primary leading-none">
-            WELCOME
+            {t("login.welcome")}
           </h1>
           <p className="text-xl sm:text-2xl text-foreground/80 mt-3 font-body">
-            to the <span className="font-bold text-foreground">BEST</span> barter page
+            {t("login.subtitle")}
           </p>
           <motion.img
             src={barterExchange}
@@ -53,7 +66,6 @@ const LoginPage = () => {
           />
         </motion.div>
 
-        {/* Right: Login form */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -63,18 +75,18 @@ const LoginPage = () => {
           <div className="glass-card rounded-2xl p-8 glow-border">
             <div className="flex items-center gap-3 justify-center mb-8">
               <div className="h-px flex-1 bg-border" />
-              <h2 className="font-display text-2xl font-bold text-foreground tracking-wider">LOGIN</h2>
+              <h2 className="font-display text-2xl font-bold text-foreground tracking-wider">{t("login.title")}</h2>
               <div className="h-px flex-1 bg-border" />
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Usuario</label>
+                <label className="text-sm font-medium text-muted-foreground">{t("login.username")}</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="Usuario"
+                    placeholder={t("login.username")}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="pl-10 bg-secondary border-border focus:border-primary focus:ring-primary/20"
@@ -83,12 +95,12 @@ const LoginPage = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Password</label>
+                <label className="text-sm font-medium text-muted-foreground">{t("login.password")}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Contraseña"
+                    placeholder={t("login.password")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10 bg-secondary border-border focus:border-primary focus:ring-primary/20"
@@ -103,18 +115,13 @@ const LoginPage = () => {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-display font-bold text-lg tracking-wider h-12"
-              >
-                LOGIN
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-display font-bold text-lg tracking-wider h-12">
+                {t("login.button")}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
-                ¿No tienes cuenta?{" "}
-                <Link to="/register" className="text-primary hover:underline font-medium">
-                  Regístrate
-                </Link>
+                {t("login.noAccount")}{" "}
+                <Link to="/register" className="text-primary hover:underline font-medium">{t("login.register")}</Link>
               </p>
             </form>
           </div>
